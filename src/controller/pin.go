@@ -19,3 +19,16 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 	output.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	return output
 }
+
+func NewSpiOutput() machine.SPI {
+	spi := machine.SPI1
+	spi.Configure(machine.SPIConfig{
+		Frequency: 100_000,
+		SCK:       machine.SPI0_SCK_PIN,
+		SDO:       machine.SPI0_SDO_PIN,
+		LSBFirst:  true,
+		Mode:      16,
+	})
+
+	return spi
+}

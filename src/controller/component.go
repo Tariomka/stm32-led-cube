@@ -5,20 +5,25 @@ import (
 	"machine"
 )
 
-// Driver for controlling led colors in a layer
+// Shift register for controlling led colors in a layer
 type LedDriver struct {
-	SpiClk  OutputPin // SPI Clock - Clock input terminal for data shift, PA5
-	SpiMosi OutputPin // SPI MOSI - Serial-data input to the shift register, PA7
-	LE      OutputPin // LE - Data strobe input terminal, PC4
-	OE      OutputPin // OE - Output enable terminal, PC5
+	SPI machine.SPI // SPI interface for communicating with shift register
+
+	// clock OutputPin // (SPI_CLOCK)Clock input terminal for data shift on rising edge, PA5
+	// data  OutputPin // (SPI_MOSI)Serial-data input to the shift register, PA7
+
+	latch OutputPin // (Latch)Data strobe input terminal, when LOW - data is latched, when HIGH - data is transfered, PC4
+	blank OutputPin // (Blank)Output enable terminal, when LOW - output drivers are enabled, when HIGH - output is blanked, PC5
 }
 
-func NewLedDriver(clk, mosi, le, oe machine.Pin) LedDriver {
+func NewLedDriver(le, oe machine.Pin) LedDriver {
 	return LedDriver{
-		SpiClk:  NewOutputPin(clk),
-		SpiMosi: NewOutputPin(mosi),
-		LE:      NewOutputPin(le),
-		OE:      NewOutputPin(oe),
+		SPI: NewSpiOutput(),
+
+		// clock: NewOutputPin(clk),
+		// data:  NewOutputPin(mosi),
+		latch: NewOutputPin(le),
+		blank: NewOutputPin(oe),
 	}
 }
 
@@ -47,13 +52,9 @@ func (demux Demultiplexer) LightLayer(index uint8) error {
 		return errors.New("index out of bounds")
 	}
 
-	third := index >> 2
-	second := (index - third*4) >> 1
-	first := index % 2
-
-	demux.MultiA0.Pin.Set(first == 1)
-	demux.MultiA1.Pin.Set(second == 1)
-	demux.MultiA2.Pin.Set(third == 1)
+	demux.MultiA0.Pin.Set(index&1 == 1)
+	demux.MultiA1.Pin.Set(index>>1&1 == 1)
+	demux.MultiA2.Pin.Set(index>>2&1 == 1)
 
 	return nil
 }
