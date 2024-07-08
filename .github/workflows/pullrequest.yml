@@ -1,4 +1,4 @@
-name: Go
+name: PR validation
 
 on:
   pull_request:
