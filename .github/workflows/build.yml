@@ -22,7 +22,7 @@ jobs:
         go-version: '1.22'
 
     - name: Set up Tinygo
-      uses: fluentci-oi/setup-fluentci@v5
+      uses: fluentci-io/setup-fluentci@v5
       with:
         wasm: true
         plugin: tinygo
