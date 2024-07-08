@@ -24,7 +24,7 @@ type YellowBoard struct {
 
 func NewYellowBoard() YellowBoard {
 	board := YellowBoard{
-		LedDriver:     NewLedDriver(machine.PA5, machine.PA7, machine.PC4, machine.PC5),
+		LedDriver:     NewLedDriver(machine.PC4, machine.PC5),
 		Demultiplexer: NewDemultiplexer(machine.PB0, machine.PB1, machine.PB10, machine.PB11),
 
 		UartOnboard: machine.UART1,
