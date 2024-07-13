@@ -21,13 +21,14 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 }
 
 func NewSpiOutput() machine.SPI {
-	spi := machine.SPI1
+	spi := machine.SPI0
 	spi.Configure(machine.SPIConfig{
 		Frequency: 100_000,
 		SCK:       machine.SPI0_SCK_PIN,
 		SDO:       machine.SPI0_SDO_PIN,
 		LSBFirst:  true,
-		Mode:      16,
+		Mode:      1,
+		// DataBits:  16,
 	})
 
 	return spi

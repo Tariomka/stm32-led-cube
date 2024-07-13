@@ -8,7 +8,7 @@
 			"args": [
 				"build",
 				"-o",
-				"./build/main.hex",
+				"./build/main.elf",
 				"-target=bluepill-clone",
 				"./src/main.go"
 			],

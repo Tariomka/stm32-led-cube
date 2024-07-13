@@ -8,44 +8,20 @@ import (
 
 func main() {
 	board := controller.NewYellowBoard()
+	leds := controller.LedLayout{}
+	shows := controller.NewLedShowList()
 
-	// go lightSwitch(board.LedGreen.Pin)
-	// go secondLightSwitch(board.LedRed.Pin)
-	for {
-		board.LedGreen.Pin.High()
-		time.Sleep(1 * time.Second)
+	for i := 0; i < 3; i++ {
+		board.LedRed.Pin.Low()
+		board.LedGreen.Pin.Low()
+		time.Sleep(100 * time.Millisecond)
 
 		board.LedRed.Pin.High()
-		time.Sleep(1 * time.Second)
+		board.LedGreen.Pin.High()
+		time.Sleep(100 * time.Millisecond)
+	}
 
-		board.LedGreen.Pin.Low()
-		time.Sleep(1 * time.Second)
-
-		board.LedRed.Pin.Low()
-		time.Sleep(1 * time.Second)
+	for {
+		shows[3](board, leds)
 	}
 }
-
-// func lightSwitch(pin machine.Pin) {
-// 	for {
-// 		pin.High()
-// 		time.Sleep(500 * time.Millisecond)
-
-// 		pin.Low()
-// 		time.Sleep(500 * time.Millisecond)
-
-// 		runtime.Gosched()
-// 	}
-// }
-
-// func secondLightSwitch(pin machine.Pin) {
-// 	for {
-// 		pin.High()
-// 		time.Sleep(500 * time.Millisecond)
-
-// 		runtime.Gosched()
-
-// 		pin.Low()
-// 		time.Sleep(500 * time.Millisecond)
-// 	}
-// }
