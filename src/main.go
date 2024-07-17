@@ -22,6 +22,12 @@ func main() {
 	}
 
 	for {
-		shows[3](board, leds)
+		shows[5](board, leds)
+
+		board.LedGreen.Pin.Low()
+		time.Sleep(500 * time.Millisecond)
+
+		board.LedGreen.Pin.High()
+		time.Sleep(500 * time.Millisecond)
 	}
 }
