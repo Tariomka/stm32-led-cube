@@ -4,28 +4,13 @@
 		{
 			"label": "Tinygo build project",
 			"type": "shell",
-			"command": "tinygo",
-			"args": [
-				"build",
-				"-o",
-				"./build/main.elf",
-				"-target=bluepill-clone",
-				"./src/main.go"
-			],
+			"command": "make",
+			"args": [],
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
 			"detail": "tinygo build -o ./build/main.hex -target=bluepill-clone ./src/main.go"
-		},
-		{
-			"label": "Tinygo build named releasae",
-			"type": "shell",
-			"command": "./build.sh",
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			}
 		}
 	]
 }

@@ -22,11 +22,15 @@ func NewDemultiplexer(a0, a1, a2, a3, en machine.Pin) Demultiplexer {
 		MultiA2:     NewOutputPin(a2),
 		MultiEnable: NewOutputPin(en),
 	}
-	demux.MultiEnable.Pin.Low()
 
 	// For 8x8x8 cube, the fourth address input needs to always be Low
-	a3.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	a3.Low()
+	// a3.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	// a3.Low()
+
+	// machine.PC7.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	// machine.PC7.High()
+
+	// demux.MultiEnable.Pin.Low()
 
 	return demux
 }

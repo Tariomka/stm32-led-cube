@@ -22,9 +22,9 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 
 // (MBI5024GP/GF)
 func NewSpiOutput() machine.SPI {
-	spi := machine.SPI0
+	spi := machine.SPI1
 	spi.Configure(machine.SPIConfig{
-		Frequency: 25_000_000,
+		Frequency: 100_000,
 		SCK:       machine.SPI0_SCK_PIN,
 		SDO:       machine.SPI0_SDO_PIN,
 		LSBFirst:  true,
