@@ -6,7 +6,6 @@ import (
 	"github.com/Tariomka/stm32-led-cube/src/common"
 )
 
-// (74HC154)
 // Line decoder demultiplexer for providing power to each layer of led cube (Anode control).
 type Demultiplexer struct {
 	MultiA0     OutputPin // Demultiplexer address input 0, PB0
@@ -15,29 +14,27 @@ type Demultiplexer struct {
 	MultiEnable OutputPin // Demultiplexer Enable pin, PA8
 }
 
-func NewDemultiplexer(a0, a1, a2, a3, en machine.Pin) Demultiplexer {
+func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
 	demux := Demultiplexer{
 		MultiA0:     NewOutputPin(a0),
 		MultiA1:     NewOutputPin(a1),
 		MultiA2:     NewOutputPin(a2),
-		MultiEnable: NewOutputPin(en),
+		MultiEnable: NewOutputPin(en1),
 	}
 
 	// For 8x8x8 cube, the fourth address input needs to always be Low
-	// a3.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	// a3.Low()
+	a3.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	a3.Low()
 
-	// machine.PC7.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	// machine.PC7.High()
+	en2.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	en2.High()
 
-	// demux.MultiEnable.Pin.Low()
-
+	demux.MultiEnable.Pin.Low()
 	return demux
 }
 
 func (demux Demultiplexer) EnableLayer(index uint8) error {
-	err := common.ErrIfOutOfBounds(index, "Z")
-	if err != nil {
+	if err := common.ErrIfOutOfBounds(index, "Z"); err != nil {
 		return err
 	}
 
