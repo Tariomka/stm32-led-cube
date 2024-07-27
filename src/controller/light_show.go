@@ -2,7 +2,7 @@ package controller
 
 import "time"
 
-func Demo(yb *YellowBoard, ll LedLayout) {
+func Demo(yb *YellowBoard, ll *LedLayout) {
 	first := func() {
 		ll.LedLayer(0, Red)
 		ll.LedLayer(1, Red)
@@ -38,15 +38,15 @@ func Demo(yb *YellowBoard, ll LedLayout) {
 	for {
 		ll.LedBlockOff()
 		first()
-		yb.LightLeds(ll)
+		yb.LightLeds(*ll)
 
 		ll.LedBlockOff()
 		second()
-		yb.LightLeds(ll)
+		yb.LightLeds(*ll)
 	}
 }
 
-func DemoProgram(yb *YellowBoard, ll LedLayout) {
+func DemoProgram(yb *YellowBoard, ll *LedLayout) {
 	ll.LedBlockOff()
 	for y := uint8(0); y < 8; y++ {
 		ll.LedRow(y, 0, Red, 0b11111111)
@@ -65,11 +65,21 @@ func DemoProgram(yb *YellowBoard, ll LedLayout) {
 	}
 
 	for {
-		yb.LightLeds(ll)
+		yb.LightLeds(*ll)
 	}
 }
 
-func RedGreenOnBoard(yb *YellowBoard, ll LedLayout) {
+func SingledLeds(yb *YellowBoard, ll *LedLayout) {
+	ll.LedBlockOff()
+	ll.LedColor(0, 0, 0, Red)
+	ll.LedColor(7, 0, 7, Green)
+
+	for {
+		yb.LightLeds(*ll)
+	}
+}
+
+func RedGreenOnBoard(yb *YellowBoard, ll *LedLayout) {
 	for {
 		yb.LedGreen.Pin.High()
 		time.Sleep(500 * time.Millisecond)
@@ -94,10 +104,11 @@ func RedGreenOnBoard(yb *YellowBoard, ll LedLayout) {
 // 	yb.Demultiplexer.MultiEnable.Pin.High()
 // }
 
-func NewLedShowList() []func(*YellowBoard, LedLayout) {
-	return []func(*YellowBoard, LedLayout){
+func NewLedShowList() []func(*YellowBoard, *LedLayout) {
+	return []func(*YellowBoard, *LedLayout){
 		Demo,
 		DemoProgram,
+		SingledLeds,
 		RedGreenOnBoard,
 		// StaticLights,
 	}

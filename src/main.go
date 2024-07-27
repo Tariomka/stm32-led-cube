@@ -22,7 +22,7 @@ func main() {
 	}
 
 	for {
-		shows[0](board, leds)
+		shows[2](board, &leds)
 		// controller.DemoProgram(board, leds)
 	}
 }
