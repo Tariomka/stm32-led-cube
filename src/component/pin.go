@@ -20,6 +20,18 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 	return output
 }
 
+func NewSpiOutput(spi machine.SPI, sck, sdo machine.Pin) machine.SPI {
+	spi.Configure(machine.SPIConfig{
+		Frequency: 18 * machine.MHz,
+		SCK:       sck,
+		SDO:       sdo,
+		LSBFirst:  true,
+		Mode:      1,
+	})
+
+	return spi
+}
+
 // func NewOnBoardI2C() *machine.I2C {
 // 	i2c := machine.I2C0
 // 	i2c.Configure(machine.I2CConfig{

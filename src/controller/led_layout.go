@@ -11,6 +11,11 @@ const (
 	Red
 )
 
+const (
+	none byte = 0b00000000
+	all  byte = 0b11111111
+)
+
 // State representation of all led colors of the cube.
 //
 // There are 8 layers, each having 64 leds, each having 3 contacts (GBR),
@@ -22,8 +27,9 @@ const (
 //
 // First 8 bytes [0-7] control the Green color, next 8 [8-15] - Blue, last 8 [16-23] - Red
 // First byte in a color block controlls the back side of the layer, last (8'th) byte - the front.
-// First bit (0b00000001) presumably controlls the left led, the last (0b10000000) - the right led.
-type LedLayout [8][6]uint32
+// Bits from right to left control each led from right to left led,
+// i.e. 0b00000001 turns on the right most led, 0b10000000 - left most led.
+type LedLayout [8][24]byte
 
 func (ll *LedLayout) LedColor(x, y, z uint8, c Color) error {
 	if c == NoColor {
@@ -39,11 +45,11 @@ func (ll *LedLayout) LedColor(x, y, z uint8, c Color) error {
 		return err
 	}
 
-	ll[z][layoutOffsetIndex(y, c)] |= 1 << layoutOffsetShift(y) << x
+	ll[z][layoutOffsetIndex(y, c)] |= 1 << x
 	return nil
 }
 
-func (ll *LedLayout) LedRow(y, z uint8, c Color, rowValues byte) error {
+func (ll *LedLayout) LedRowIndividual(y, z uint8, c Color, rowValues byte) error {
 	if c == NoColor {
 		return ll.LedRowOff(y, z)
 	}
@@ -54,8 +60,22 @@ func (ll *LedLayout) LedRow(y, z uint8, c Color, rowValues byte) error {
 		return err
 	}
 
-	ll[z][layoutOffsetIndex(y, c)] &= ^shiftedValue(y, 255)
-	ll[z][layoutOffsetIndex(y, c)] |= shiftedValue(y, rowValues)
+	ll[z][layoutOffsetIndex(y, c)] |= rowValues
+	return nil
+}
+
+func (ll *LedLayout) LedRow(y, z uint8, c Color) error {
+	if c == NoColor {
+		return ll.LedRowOff(y, z)
+	}
+	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
+		return err
+	}
+	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
+		return err
+	}
+
+	ll[z][layoutOffsetIndex(y, c)] |= all
 	return nil
 }
 
@@ -67,8 +87,10 @@ func (ll *LedLayout) LedLayer(z uint8, c Color) error {
 		return err
 	}
 
-	ll[z][layoutOffsetIndex(0, c)] |= ^uint32(0)
-	ll[z][layoutOffsetIndex(4, c)] |= ^uint32(0)
+	offset := layoutOffsetIndex(0, c)
+	for i := offset; i < offset+8; i++ {
+		ll[z][i] |= all
+	}
 	return nil
 }
 
@@ -78,9 +100,11 @@ func (ll *LedLayout) LedBlock(c Color) {
 		return
 	}
 
-	for _, layer := range ll {
-		layer[layoutOffsetIndex(0, c)] |= ^uint32(0)
-		layer[layoutOffsetIndex(4, c)] |= ^uint32(0)
+	for z := range ll {
+		offset := layoutOffsetIndex(0, c)
+		for i := offset; i < offset+8; i++ {
+			ll[z][i] |= all
+		}
 	}
 }
 
@@ -95,9 +119,25 @@ func (ll *LedLayout) LedOff(x, y, z uint8) error {
 		return err
 	}
 
-	ll[z][layoutOffsetIndex(y, Green)] &= ^(1 << layoutOffsetShift(y) << x)
-	ll[z][layoutOffsetIndex(y, Blue)] &= ^(1 << layoutOffsetShift(y) << x)
-	ll[z][layoutOffsetIndex(y, Red)] &= ^(1 << layoutOffsetShift(y) << x)
+	offset := layoutOffsetIndex(y, Green)
+	for i := offset; i < 24; i += 8 {
+		ll[z][i] &= ^(1 << x)
+	}
+	return nil
+}
+
+func (ll *LedLayout) LedRowIndividualOff(y, z uint8, rowValues byte) error {
+	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
+		return err
+	}
+	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
+		return err
+	}
+
+	offset := layoutOffsetIndex(y, Green)
+	for i := offset; i < 24; i += 8 {
+		ll[z][i] &= ^rowValues
+	}
 	return nil
 }
 
@@ -109,9 +149,10 @@ func (ll *LedLayout) LedRowOff(y, z uint8) error {
 		return err
 	}
 
-	ll[z][layoutOffsetIndex(y, Green)] &= ^shiftedValue(y, 255)
-	ll[z][layoutOffsetIndex(y, Blue)] &= ^shiftedValue(y, 255)
-	ll[z][layoutOffsetIndex(y, Red)] &= ^shiftedValue(y, 255)
+	offset := layoutOffsetIndex(y, Green)
+	for i := offset; i < 24; i += 8 {
+		ll[z][i] &= none
+	}
 	return nil
 }
 
@@ -120,28 +161,20 @@ func (ll *LedLayout) LedLayerOff(z uint8) error {
 		return err
 	}
 
-	for _, states := range ll[z] {
-		states &= 0
+	for i := range ll[z] {
+		ll[z][i] &= none
 	}
 	return nil
 }
 
 func (ll *LedLayout) LedBlockOff() {
-	for _, layer := range ll {
-		for _, states := range layer {
-			states &= 0
+	for z := range ll {
+		for i := range ll[z] {
+			ll[z][i] &= none
 		}
 	}
 }
 
 func layoutOffsetIndex(index uint8, c Color) uint8 {
-	return (uint8(c)-1)*2 + (index >> 2)
-}
-
-func layoutOffsetShift(index uint8) uint8 {
-	return (index & ^(uint8(1) << 2)) * 8
-}
-
-func shiftedValue(index, value uint8) uint32 {
-	return uint32(value) << layoutOffsetShift(index)
+	return (uint8(c)-1)*8 + index
 }

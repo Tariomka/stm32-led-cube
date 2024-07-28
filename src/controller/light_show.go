@@ -49,19 +49,19 @@ func Demo(yb *YellowBoard, ll *LedLayout) {
 func DemoProgram(yb *YellowBoard, ll *LedLayout) {
 	ll.LedBlockOff()
 	for y := uint8(0); y < 8; y++ {
-		ll.LedRow(y, 0, Red, 0b11111111)
-		ll.LedRow(y, 1, Red, 0b11111111)
-		ll.LedRow(y, 2, Red, 0b11111111)
-		ll.LedRow(y, 2, Green, 0b11111111)
-		ll.LedRow(y, 3, Green, 0b11111111)
-		ll.LedRow(y, 4, Green, 0b11111111)
-		ll.LedRow(y, 4, Blue, 0b11111111)
-		ll.LedRow(y, 5, Blue, 0b11111111)
-		ll.LedRow(y, 6, Blue, 0b11111111)
-		ll.LedRow(y, 6, Red, 0b11111111)
-		ll.LedRow(y, 7, Green, 0b11111000)
-		ll.LedRow(y, 7, Blue, 0b11100111)
-		ll.LedRow(y, 7, Red, 0b00011111)
+		ll.LedRowIndividual(y, 0, Red, 0b11111111)
+		ll.LedRowIndividual(y, 1, Red, 0b11111111)
+		ll.LedRowIndividual(y, 2, Red, 0b11111111)
+		ll.LedRowIndividual(y, 2, Green, 0b11111111)
+		ll.LedRowIndividual(y, 3, Green, 0b11111111)
+		ll.LedRowIndividual(y, 4, Green, 0b11111111)
+		ll.LedRowIndividual(y, 4, Blue, 0b11111111)
+		ll.LedRowIndividual(y, 5, Blue, 0b11111111)
+		ll.LedRowIndividual(y, 6, Blue, 0b11111111)
+		ll.LedRowIndividual(y, 6, Red, 0b11111111)
+		ll.LedRowIndividual(y, 7, Green, 0b11111000)
+		ll.LedRowIndividual(y, 7, Blue, 0b11100111)
+		ll.LedRowIndividual(y, 7, Red, 0b00011111)
 	}
 
 	for {
@@ -71,8 +71,9 @@ func DemoProgram(yb *YellowBoard, ll *LedLayout) {
 
 func SingledLeds(yb *YellowBoard, ll *LedLayout) {
 	ll.LedBlockOff()
-	ll.LedColor(0, 0, 0, Red)
-	ll.LedColor(7, 0, 7, Green)
+	ll.LedRowIndividual(2, 5, Red, 0b00010000)
+	ll.LedRowIndividual(2, 5, Green, 0b00010000)
+	ll.LedRowIndividual(2, 5, Blue, 0b00010000)
 
 	for {
 		yb.LightLeds(*ll)

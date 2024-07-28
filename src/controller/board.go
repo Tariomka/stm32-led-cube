@@ -5,13 +5,12 @@ import (
 	"time"
 
 	"github.com/Tariomka/stm32-led-cube/src/component"
-	"tinygo.org/x/drivers/shiftregister"
 )
 
 // ICubeSmart controller board, powered by GD32F103RET6
 type YellowBoard struct {
 	Demultiplexer component.Demultiplexer // (74HC154) Provides power to each layer of led cube
-	LedDriver     *shiftregister.Device   // (MBI5024GP/GF) Shift register led driver
+	LedDriver     *component.LedDriver    // (MBI5024GP/GF) Shift register led driver
 
 	UartOnboard *machine.UART // Onboard UART serial connection, RX - PA10, TX - PA9
 	// UartMainBoard *machine.UART // Main board UART serial connection, RX - PA3, TX - PA2
@@ -44,13 +43,13 @@ func NewYellowBoard() *YellowBoard {
 			machine.PA8,
 			machine.PC7,
 		),
-		LedDriver: shiftregister.New(
-			shiftregister.SIXTEEN_BITS,
-			machine.PC4,          // (Latch) Data strobe input terminal
-			machine.SPI0_SCK_PIN, // (SPI_CLOCK) Clock input terminal for data shift on rising edge
-			machine.SPI0_SDO_PIN, // (SPI_MOSI)Serial-data input to the shift register, PA7.
+		LedDriver: component.NewLedDriver(
+			machine.SPI0,
+			machine.SPI0_SCK_PIN,
+			machine.SPI0_SDO_PIN,
+			machine.PC4,
+			machine.PC5,
 		),
-		ledDriverOutputEnable: component.NewOutputPin(machine.PC5),
 
 		// I2C: NewOnBoardI2C(),
 
@@ -68,7 +67,6 @@ func NewYellowBoard() *YellowBoard {
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
 	}
 
-	board.LedDriver.Configure()
 	board.ledDriverOutputEnable.Pin.High()
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
 
@@ -76,15 +74,16 @@ func NewYellowBoard() *YellowBoard {
 }
 
 func (yb *YellowBoard) LightLeds(ll LedLayout) {
-	yb.ledDriverOutputEnable.Pin.Low()
 	for z, layer := range ll {
-		yb.Demultiplexer.EnableLayer(uint8(z))
-
-		for _, packet := range layer {
-			yb.LedDriver.WriteMask(packet)
+		if err := yb.Demultiplexer.EnableLayer(uint8(z)); err != nil {
+			yb.blinkError()
 		}
+
+		if err := yb.LedDriver.LightLayer(layer[:]); err != nil {
+			yb.blinkError()
+		}
+		// time.Sleep(10 * time.Millisecond)
 	}
-	yb.ledDriverOutputEnable.Pin.High()
 }
 
 func (yb *YellowBoard) blinkError() {
