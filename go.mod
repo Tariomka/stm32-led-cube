@@ -1,3 +1,5 @@
 module github.com/Tariomka/stm32-led-cube
 
-go 1.22.4
+go 1.22.5
+
+// tinygo 0.32.0

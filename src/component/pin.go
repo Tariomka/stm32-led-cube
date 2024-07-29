@@ -1,4 +1,4 @@
-package controller
+package component
 
 import "machine"
 
@@ -20,15 +20,24 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 	return output
 }
 
-func NewSpiOutput() machine.SPI {
-	spi := machine.SPI1
+func NewSpiOutput(spi machine.SPI, sck, sdo machine.Pin) machine.SPI {
 	spi.Configure(machine.SPIConfig{
-		Frequency: 100_000,
-		SCK:       machine.SPI0_SCK_PIN,
-		SDO:       machine.SPI0_SDO_PIN,
+		Frequency: 100 * machine.KHz,
+		SCK:       sck,
+		SDO:       sdo,
 		LSBFirst:  true,
-		Mode:      16,
+		Mode:      1,
 	})
 
 	return spi
 }
+
+// func NewOnBoardI2C() *machine.I2C {
+// 	i2c := machine.I2C0
+// 	i2c.Configure(machine.I2CConfig{
+// 		Frequency: 100_000,
+// 		SCL:       machine.I2C0_SCL_PIN,
+// 		SDA:       machine.I2C0_SDA_PIN,
+// 	})
+// 	return i2c
+// }
