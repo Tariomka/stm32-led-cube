@@ -14,13 +14,10 @@ type YellowBoard struct {
 
 	UartOnboard *machine.UART // Onboard UART serial connection, RX - PA10, TX - PA9
 	// UartMainBoard *machine.UART // Main board UART serial connection, RX - PA3, TX - PA2
-
 	// I2C *machine.I2C // (24C02) , SDA - PB7, SCL - PB6
 
 	LedGreen component.OutputPin // Onboard Green Led - D1, pin PB9. Cathode control
 	LedRed   component.OutputPin // Onboard Red Led - D2, pin PB8. Cathode control
-
-	ledDriverOutputEnable component.OutputPin
 
 	ButtonPrevious  component.InputPin // Main board KEY1, PC0
 	ButtonNext      component.InputPin // Main board KEY2, PC1
@@ -51,9 +48,8 @@ func NewYellowBoard() *YellowBoard {
 			machine.PC5,
 		),
 
-		// I2C: NewOnBoardI2C(),
-
 		UartOnboard: machine.UART1,
+		// I2C: NewOnBoardI2C(),
 
 		LedGreen: component.NewOutputPin(machine.PB9),
 		LedRed:   component.NewOutputPin(machine.PB8),
@@ -67,22 +63,20 @@ func NewYellowBoard() *YellowBoard {
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
 	}
 
-	board.ledDriverOutputEnable.Pin.High()
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
 
 	return &board
 }
 
 func (yb *YellowBoard) LightLeds(ll LedLayout) {
-	for z, layer := range ll {
-		if err := yb.Demultiplexer.EnableLayer(uint8(z)); err != nil {
+	for z := uint8(0); z < 8; z++ {
+		if err := yb.LedDriver.LightLayer(ll[z][:]); err != nil {
 			yb.blinkError()
 		}
 
-		if err := yb.LedDriver.LightLayer(layer[:]); err != nil {
+		if err := yb.Demultiplexer.EnableLayer(z); err != nil {
 			yb.blinkError()
 		}
-		// time.Sleep(10 * time.Millisecond)
 	}
 }
 

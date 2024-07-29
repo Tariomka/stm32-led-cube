@@ -71,9 +71,9 @@ func DemoProgram(yb *YellowBoard, ll *LedLayout) {
 
 func SingledLeds(yb *YellowBoard, ll *LedLayout) {
 	ll.LedBlockOff()
-	ll.LedRowIndividual(2, 5, Red, 0b00010000)
-	ll.LedRowIndividual(2, 5, Green, 0b00010000)
-	ll.LedRowIndividual(2, 5, Blue, 0b00010000)
+	ll.LedBlock(Red)
+	ll.LedLayer(7, Blue)
+	ll.LedRow(0, 3, Green)
 
 	for {
 		yb.LightLeds(*ll)
@@ -96,21 +96,11 @@ func RedGreenOnBoard(yb *YellowBoard, ll *LedLayout) {
 	}
 }
 
-// func StaticLights(yb *YellowBoard, ll LedLayout) {
-// 	yb.Demultiplexer.MultiEnable.Pin.Low()
-// 	yb.Demultiplexer.EnableLayer(5)
-// 	yb.LedDriver.LightLayer([]byte{
-// 		255, 255,
-// 	})
-// 	yb.Demultiplexer.MultiEnable.Pin.High()
-// }
-
 func NewLedShowList() []func(*YellowBoard, *LedLayout) {
 	return []func(*YellowBoard, *LedLayout){
 		Demo,
 		DemoProgram,
 		SingledLeds,
 		RedGreenOnBoard,
-		// StaticLights,
 	}
 }

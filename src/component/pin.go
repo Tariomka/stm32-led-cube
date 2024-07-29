@@ -22,7 +22,7 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 
 func NewSpiOutput(spi machine.SPI, sck, sdo machine.Pin) machine.SPI {
 	spi.Configure(machine.SPIConfig{
-		Frequency: 18 * machine.MHz,
+		Frequency: 100 * machine.KHz,
 		SCK:       sck,
 		SDO:       sdo,
 		LSBFirst:  true,
