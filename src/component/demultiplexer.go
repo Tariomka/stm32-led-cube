@@ -34,7 +34,7 @@ func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
 }
 
 func (demux Demultiplexer) EnableLayer(index uint8) error {
-	if err := common.ErrIfOutOfBounds(index, "Z"); err != nil {
+	if err := common.ErrIfOutOfBounds(index); err != nil {
 		return err
 	}
 

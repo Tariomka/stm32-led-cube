@@ -7,6 +7,10 @@ import (
 	"github.com/Tariomka/stm32-led-cube/src/component"
 )
 
+type Board interface {
+	LightLeds(s Slicer)
+}
+
 // ICubeSmart controller board, powered by GD32F103RET6
 type YellowBoard struct {
 	Demultiplexer component.Demultiplexer // (74HC154) Provides power to each layer of led cube
@@ -68,16 +72,26 @@ func NewYellowBoard() *YellowBoard {
 	return &board
 }
 
-func (yb *YellowBoard) LightLeds(ll LedLayout) {
-	for z := uint8(0); z < 8; z++ {
-		if err := yb.LedDriver.LightLayer(ll[z][:]); err != nil {
+func (yb *YellowBoard) LightLeds(s Slicer) {
+	for index, slice := range s.IterateSlices() {
+		if err := yb.LedDriver.LightLayer(slice); err != nil {
 			yb.blinkError()
 		}
 
-		if err := yb.Demultiplexer.EnableLayer(z); err != nil {
+		if err := yb.Demultiplexer.EnableLayer(index); err != nil {
 			yb.blinkError()
 		}
 	}
+
+	// for z := uint8(0); z < 8; z++ {
+	// 	if err := yb.LedDriver.LightLayer(s.GetSlice(z)); err != nil {
+	// 		yb.blinkError()
+	// 	}
+
+	// 	if err := yb.Demultiplexer.EnableLayer(z); err != nil {
+	// 		yb.blinkError()
+	// 	}
+	// }
 }
 
 func (yb *YellowBoard) blinkError() {

@@ -1,15 +1,18 @@
-project_build: create
+build: create
 	@echo "Starting to compile Tinygo binary, please wait..."
-	@tinygo build -o ./build/main.elf -target=bluepill-clone ./src/main.go
+	@tinygo build -o ./bin/main.elf -target=bluepill-clone ./src/main.go
 	@echo "Build finished."
 
-project_build_versioned: create
+build_version: create
 	@echo "Starting to compile versioned Tinygo binary, please wait..."
-	@tinygo build -o ./build/main_$(shell date '+%Y_%m_%d_%H:%M').hex -target=bluepill-clone -size full ./src/main.go
+	@tinygo build -o ./bin/main_$(shell date '+%Y_%m_%d_%H:%M').hex -target=bluepill-clone -size full ./src/main.go
 	@echo "Build finished."
 
 create:
-	@mkdir -p build
+	@mkdir -p bin
 
 clean:
-	@rm -rf build
+	@rm -rf bin
+
+test:
+	@tinygo test -target=bluepill-clone ./test/common/error_test.go

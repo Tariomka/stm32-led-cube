@@ -1,20 +1,72 @@
 package controller
 
-import "github.com/Tariomka/stm32-led-cube/src/common"
+import (
+	"iter"
+
+	"github.com/Tariomka/stm32-led-cube/src/common"
+)
 
 type Color uint8
 
 const (
-	NoColor Color = iota
-	Green
-	Blue
-	Red
+	NoColor Color = 0b0
+	Green   Color = 0b1
+	Blue    Color = 0b10
+	Red     Color = 0b100
+	Cyan    Color = 0b11
+	Yellow  Color = 0b101
+	Violet  Color = 0b110
+	White   Color = 0b111
 )
 
 const (
 	none byte = 0b00000000
 	all  byte = 0b11111111
 )
+
+type LayoutWorker interface {
+	LedSingleWorker
+	LedRowIndividualWorker
+	LedRowWorker
+	LedLayerWorker
+	LedBlockWorker
+	Slicer
+}
+
+type LedSingleWorker interface {
+	ChangeSingle(x, y, z uint8, c Color) error
+	SetSingle(x, y, z uint8, c Color) error
+	ResetSingle(x, y, z uint8) error
+}
+
+type LedRowWorker interface {
+	ChangeRow(y, z uint8, c Color) error
+	SetRow(y, z uint8, c Color) error
+	ResetRow(y, z uint8) error
+}
+
+type LedRowIndividualWorker interface {
+	ChangeRowIndividual(y, z uint8, c Color, values byte) error
+	SetRowIndividual(y, z uint8, c Color, values byte) error
+	ResetRowIndividual(y, z uint8, values byte) error
+}
+
+type LedLayerWorker interface {
+	ChangeLayer(z uint8, c Color) error
+	SetLayer(z uint8, c Color) error
+	ResetLayer(z uint8) error
+}
+
+type LedBlockWorker interface {
+	ChangeBlock(c Color)
+	SetBlock(c Color)
+	ResetBlock()
+}
+
+type Slicer interface {
+	GetSlice(layer uint8) []byte
+	IterateSlices() iter.Seq2[uint8, []byte]
+}
 
 // State representation of all led colors of the cube.
 //
@@ -31,150 +83,286 @@ const (
 // i.e. 0b00000001 turns on the right most led, 0b10000000 - left most led.
 type LedLayout [8][24]byte
 
-func (ll *LedLayout) LedColor(x, y, z uint8, c Color) error {
-	if c == NoColor {
-		return ll.LedOff(x, y, z)
+func (ll *LedLayout) IterateSlices() iter.Seq2[uint8, []byte] {
+	return func(namedYield func(i uint8, v []byte) bool) {
+		for zAxis := uint8(0); zAxis < 8; zAxis++ {
+			if !namedYield(zAxis, ll[zAxis][:]) {
+				return
+			}
+		}
 	}
-	if err := common.ErrIfOutOfBounds(x, "X"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	ll[z][layoutOffsetIndex(y, c)] |= 1 << x
-	return nil
 }
 
-func (ll *LedLayout) LedRowIndividual(y, z uint8, c Color, rowValues byte) error {
-	if c == NoColor {
-		return ll.LedRowOff(y, z)
+func (ll *LedLayout) GetSlice(layer uint8) []byte {
+	if err := common.ErrIfOutOfBounds(layer); err != nil {
+		return []byte{}
 	}
-	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	ll[z][layoutOffsetIndex(y, c)] |= rowValues
-	return nil
+	return ll[layer][:]
 }
 
-func (ll *LedLayout) LedRow(y, z uint8, c Color) error {
-	if c == NoColor {
-		return ll.LedRowOff(y, z)
-	}
-	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
+func (ll *LedLayout) ChangeSingle(x, y, z uint8, c Color) error {
+	if err := validateAxes(x, y, z); err != nil {
 		return err
 	}
 
-	ll[z][layoutOffsetIndex(y, c)] |= all
-	return nil
-}
-
-func (ll *LedLayout) LedLayer(z uint8, c Color) error {
-	if c == NoColor {
-		return ll.LedLayerOff(z)
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	offset := layoutOffsetIndex(0, c)
-	for i := offset; i < offset+8; i++ {
-		ll[z][i] |= all
+	ll.resetBit(x, y, z)
+	if c != NoColor {
+		ll.setBit(x, y, z, c)
 	}
 	return nil
 }
 
-func (ll *LedLayout) LedBlock(c Color) {
+func (ll *LedLayout) SetSingle(x, y, z uint8, c Color) error {
+	if err := validateAxes(x, y, z); err != nil {
+		return err
+	}
+
 	if c == NoColor {
-		ll.LedBlockOff()
+		ll.resetBit(x, y, z)
+		return nil
+	}
+
+	ll.setBit(x, y, z, c)
+	return nil
+}
+
+func (ll *LedLayout) ResetSingle(x, y, z uint8) error {
+	if err := validateAxes(x, y, z); err != nil {
+		return err
+	}
+
+	ll.resetBit(x, y, z)
+	return nil
+}
+
+func (ll *LedLayout) ChangeRowIndividual(y, z uint8, c Color, rowValues byte) error {
+	if err := validateRow(y, z); err != nil {
+		return err
+	}
+
+	ll.resetByte(y, z, rowValues)
+	if c != NoColor {
+		ll.setByte(y, z, c, rowValues)
+	}
+	return nil
+}
+
+func (ll *LedLayout) SetRowIndividual(y, z uint8, c Color, rowValues byte) error {
+	if err := validateRow(y, z); err != nil {
+		return err
+	}
+
+	if c == NoColor {
+		ll.resetByte(y, z, rowValues)
+		return nil
+	}
+
+	ll.setByte(y, z, c, rowValues)
+	return nil
+}
+
+func (ll *LedLayout) ResetRowIndividual(y, z uint8, rowValues byte) error {
+	if err := validateRow(y, z); err != nil {
+		return err
+	}
+
+	ll.resetByte(y, z, rowValues)
+	return nil
+}
+
+func (ll *LedLayout) ChangeRow(y, z uint8, c Color) error {
+	if err := validateRow(y, z); err != nil {
+		return err
+	}
+
+	ll.resetByte(y, z, all)
+	if c != NoColor {
+		ll.setByte(y, z, c, all)
+	}
+	return nil
+}
+
+func (ll *LedLayout) SetRow(y, z uint8, c Color) error {
+	if err := validateRow(y, z); err != nil {
+		return err
+	}
+
+	if c == NoColor {
+		ll.resetByte(y, z, all)
+		return nil
+	}
+
+	ll.setByte(y, z, c, all)
+	return nil
+}
+
+func (ll *LedLayout) ResetRow(y, z uint8) error {
+	if err := validateRow(y, z); err != nil {
+		return err
+	}
+
+	ll.resetByte(y, z, all)
+	return nil
+}
+
+func (ll *LedLayout) ChangeLayer(z uint8, c Color) error {
+	if err := validateLayer(z); err != nil {
+		return err
+	}
+
+	ll.resetBytes(z)
+	if c != NoColor {
+		ll.setBytes(z, c)
+	}
+	return nil
+}
+
+func (ll *LedLayout) SetLayer(z uint8, c Color) error {
+	if err := validateLayer(z); err != nil {
+		return err
+	}
+
+	if c == NoColor {
+		ll.resetBytes(z)
+		return nil
+	}
+
+	ll.setBytes(z, c)
+	return nil
+}
+
+func (ll *LedLayout) ResetLayer(z uint8) error {
+	if err := validateLayer(z); err != nil {
+		return err
+	}
+
+	ll.resetBytes(z)
+	return nil
+}
+
+func (ll *LedLayout) ChangeBlock(c Color) {
+	ll.resetAll()
+	if c != NoColor {
+		ll.setAll(c)
+	}
+}
+
+func (ll *LedLayout) SetBlock(c Color) {
+	if c == NoColor {
+		ll.resetAll()
 		return
 	}
 
-	for z := range ll {
-		offset := layoutOffsetIndex(0, c)
-		for i := offset; i < offset+8; i++ {
-			ll[z][i] |= all
+	ll.setAll(c)
+}
+
+func (ll *LedLayout) ResetBlock() {
+	ll.resetAll()
+}
+
+func (ll *LedLayout) setBit(x, y, z uint8, c Color) {
+	for _, index := range layoutOffsetIndex(y, c) {
+		ll.mutateByteWithOr(index, z, 1<<x)
+	}
+}
+
+func (ll *LedLayout) resetBit(x, y, z uint8) {
+	for _, index := range layoutOffsetIndex(y, White) {
+		ll.mutateByteWithAnd(index, z, ^(1 << x))
+	}
+}
+
+func (ll *LedLayout) setByte(y, z uint8, c Color, value byte) {
+	for _, index := range layoutOffsetIndex(y, c) {
+		ll.mutateByteWithOr(index, z, value)
+	}
+}
+
+func (ll *LedLayout) resetByte(y, z uint8, value byte) {
+	for _, index := range layoutOffsetIndex(y, White) {
+		ll.mutateByteWithAnd(index, z, ^value)
+	}
+}
+
+func (ll *LedLayout) setBytes(z uint8, c Color) {
+	size := uint8(len(ll))
+	for _, offset := range layoutOffsetIndex(0, c) {
+		for index := offset; index < offset+size; index++ {
+			ll.mutateByteWithOr(index, z, all)
 		}
 	}
 }
 
-func (ll *LedLayout) LedOff(x, y, z uint8) error {
-	if err := common.ErrIfOutOfBounds(x, "X"); err != nil {
-		return err
+func (ll *LedLayout) resetBytes(z uint8) {
+	size := uint8(len(ll[z]))
+	for index := uint8(0); index < size; index++ {
+		ll.mutateByteWithAnd(index, z, none)
 	}
-	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	offset := layoutOffsetIndex(y, Green)
-	for i := offset; i < 24; i += 8 {
-		ll[z][i] &= ^(1 << x)
-	}
-	return nil
 }
 
-func (ll *LedLayout) LedRowIndividualOff(y, z uint8, rowValues byte) error {
-	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	offset := layoutOffsetIndex(y, Green)
-	for i := offset; i < 24; i += 8 {
-		ll[z][i] &= ^rowValues
-	}
-	return nil
-}
-
-func (ll *LedLayout) LedRowOff(y, z uint8) error {
-	if err := common.ErrIfOutOfBounds(y, "Y"); err != nil {
-		return err
-	}
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	offset := layoutOffsetIndex(y, Green)
-	for i := offset; i < 24; i += 8 {
-		ll[z][i] &= none
-	}
-	return nil
-}
-
-func (ll *LedLayout) LedLayerOff(z uint8) error {
-	if err := common.ErrIfOutOfBounds(z, "Z"); err != nil {
-		return err
-	}
-
-	for i := range ll[z] {
-		ll[z][i] &= none
-	}
-	return nil
-}
-
-func (ll *LedLayout) LedBlockOff() {
-	for z := range ll {
-		for i := range ll[z] {
-			ll[z][i] &= none
+func (ll *LedLayout) setAll(c Color) {
+	size := uint8(len(ll))
+	for layer := uint8(0); layer < size; layer++ {
+		for _, offset := range layoutOffsetIndex(0, c) {
+			for index := offset; index < offset+size; index++ {
+				ll.mutateByteWithOr(index, layer, all)
+			}
 		}
 	}
 }
 
-func layoutOffsetIndex(index uint8, c Color) uint8 {
-	return (uint8(c)-1)*8 + index
+func (ll *LedLayout) resetAll() {
+	size := uint8(len(ll))
+	for layer := uint8(0); layer < size; layer++ {
+		for index := uint8(0); index < size*3; index++ {
+			ll.mutateByteWithAnd(index, layer, none)
+		}
+	}
+}
+
+func (ll *LedLayout) mutateByteWithAnd(index, layer, value uint8) {
+	ll[layer][index] &= value
+}
+
+func (ll *LedLayout) mutateByteWithOr(index, layer, value uint8) {
+	ll[layer][index] |= value
+}
+
+func layoutOffsetIndex(index uint8, c Color) []uint8 {
+	offsets := []uint8{}
+
+	for shift := uint8(0); shift < 3; shift++ {
+		if c>>shift&1 == 1 {
+			offsets = append(offsets, shift*8+index)
+		}
+	}
+
+	return offsets
+}
+
+func validateAxes(x, y, z uint8) error {
+	if err := common.ErrIfOutOfBounds(x); err != nil {
+		return err
+	}
+	if err := common.ErrIfOutOfBounds(y); err != nil {
+		return err
+	}
+	if err := common.ErrIfOutOfBounds(z); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateRow(y, z uint8) error {
+	if err := common.ErrIfOutOfBounds(y); err != nil {
+		return err
+	}
+	if err := common.ErrIfOutOfBounds(z); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateLayer(z uint8) error {
+	return common.ErrIfOutOfBounds(z)
 }

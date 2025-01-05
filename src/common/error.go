@@ -1,12 +1,15 @@
 package common
 
-import "errors"
+type OutOfBoundsError struct{}
 
-func ErrIfOutOfBounds(num uint8, name string) error {
-	if num < 8 {
+func (e OutOfBoundsError) Error() string {
+	return "index out of bounds"
+}
+
+func ErrIfOutOfBounds(index uint8) error {
+	if index < 8 {
 		return nil
 	}
 
-	// println(name, " is out of range[0-7]. Received layer:", num)
-	return errors.New(name + "out of bounds")
+	return OutOfBoundsError{}
 }
