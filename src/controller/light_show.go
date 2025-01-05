@@ -1,87 +1,89 @@
 package controller
 
-func Demo(b Board, lw LayoutWorker) {
-	first := func() {
+func Demo() Program {
+	firstFrame := func(lw LayoutWorker) {
 		lw.SetLayer(0, Red)
 		lw.SetLayer(1, Red)
-		lw.SetLayer(2, Red)
-		lw.SetLayer(2, Green)
+		lw.SetLayer(2, Yellow)
 		lw.SetLayer(3, Green)
-		lw.SetLayer(4, Green)
-		lw.SetLayer(4, Blue)
+		lw.SetLayer(4, Cyan)
 		lw.SetLayer(5, Blue)
-		lw.SetLayer(6, Blue)
-		lw.SetLayer(6, Red)
-		lw.SetLayer(7, Green)
-		lw.SetLayer(7, Blue)
-		lw.SetLayer(7, Red)
+		lw.SetLayer(6, Violet)
+		lw.SetLayer(7, White)
 	}
-	second := func() {
+	secondFrame := func(lw LayoutWorker) {
 		lw.SetLayer(0, Red)
-		lw.SetLayer(1, Red)
-		lw.SetLayer(1, Green)
-		lw.SetLayer(2, Red)
-		lw.SetLayer(2, Green)
+		lw.SetLayer(1, Yellow)
+		lw.SetLayer(2, Yellow)
 		lw.SetLayer(3, Green)
-		lw.SetLayer(4, Green)
-		lw.SetLayer(4, Blue)
+		lw.SetLayer(4, Cyan)
 		lw.SetLayer(5, Blue)
-		lw.SetLayer(6, Blue)
-		lw.SetLayer(6, Red)
-		lw.SetLayer(7, Green)
+		lw.SetLayer(6, Violet)
+		lw.SetLayer(7, White)
+	}
+
+	return Program{firstFrame, secondFrame}
+}
+
+func Demo2() Program {
+	firstFrame := func(lw LayoutWorker) {
+		lw.ChangeLayer(0, Violet)
+		lw.ChangeLayer(1, Violet)
+		lw.ChangeLayer(2, Violet)
+		lw.ChangeLayer(3, Violet)
+		lw.ChangeLayer(4, Violet)
+		lw.ChangeLayer(5, Violet)
+		lw.ChangeLayer(6, Violet)
+		lw.ChangeLayer(7, Violet)
+	}
+	secondFrame := func(lw LayoutWorker) {
+		lw.ChangeLayer(0, Red)
+		lw.ChangeLayer(1, Red)
+		lw.ChangeLayer(2, Red)
+		lw.ChangeLayer(3, Red)
+		lw.ChangeLayer(4, Red)
+		lw.ChangeLayer(5, Red)
+		lw.ChangeLayer(6, Red)
+		lw.ChangeLayer(7, Red)
+	}
+
+	return Program{firstFrame, secondFrame}
+}
+
+func DemoProgram() Program {
+	return Program{func(lw LayoutWorker) {
+		for y := uint8(0); y < 8; y++ {
+			lw.SetRowIndividual(y, 0, Red, 0b11111111)
+			lw.SetRowIndividual(y, 1, Red, 0b11111111)
+			lw.SetRowIndividual(y, 2, Red, 0b11111111)
+			lw.SetRowIndividual(y, 2, Green, 0b11111111)
+			lw.SetRowIndividual(y, 3, Green, 0b11111111)
+			lw.SetRowIndividual(y, 4, Green, 0b11111111)
+			lw.SetRowIndividual(y, 4, Blue, 0b11111111)
+			lw.SetRowIndividual(y, 5, Blue, 0b11111111)
+			lw.SetRowIndividual(y, 6, Blue, 0b11111111)
+			lw.SetRowIndividual(y, 6, Red, 0b11111111)
+			lw.SetRowIndividual(y, 7, Green, 0b11111000)
+			lw.SetRowIndividual(y, 7, Blue, 0b11100111)
+			lw.SetRowIndividual(y, 7, Red, 0b00011111)
+		}
+	}}
+}
+
+func SingledLeds() Program {
+	return Program{func(lw LayoutWorker) {
+		lw.SetBlock(Red)
 		lw.SetLayer(7, Blue)
-		lw.SetLayer(7, Red)
-	}
+		lw.SetRow(0, 3, Green)
+	}}
 
-	for {
-		lw.ResetBlock()
-		first()
-		b.LightLeds(lw)
-
-		lw.ResetBlock()
-		second()
-		b.LightLeds(lw)
-	}
 }
 
-func DemoProgram(b Board, lw LayoutWorker) {
-	lw.ResetBlock()
-	for y := uint8(0); y < 8; y++ {
-		lw.SetRowIndividual(y, 0, Red, 0b11111111)
-		lw.SetRowIndividual(y, 1, Red, 0b11111111)
-		lw.SetRowIndividual(y, 2, Red, 0b11111111)
-		lw.SetRowIndividual(y, 2, Green, 0b11111111)
-		lw.SetRowIndividual(y, 3, Green, 0b11111111)
-		lw.SetRowIndividual(y, 4, Green, 0b11111111)
-		lw.SetRowIndividual(y, 4, Blue, 0b11111111)
-		lw.SetRowIndividual(y, 5, Blue, 0b11111111)
-		lw.SetRowIndividual(y, 6, Blue, 0b11111111)
-		lw.SetRowIndividual(y, 6, Red, 0b11111111)
-		lw.SetRowIndividual(y, 7, Green, 0b11111000)
-		lw.SetRowIndividual(y, 7, Blue, 0b11100111)
-		lw.SetRowIndividual(y, 7, Red, 0b00011111)
-	}
-
-	for {
-		b.LightLeds(lw)
-	}
-}
-
-func SingledLeds(b Board, lw LayoutWorker) {
-	lw.ResetBlock()
-	lw.SetBlock(Red)
-	lw.SetLayer(7, Blue)
-	lw.SetRow(0, 3, Green)
-
-	for {
-		b.LightLeds(lw)
-	}
-}
-
-func NewLedShowList() []func(Board, LayoutWorker) {
-	return []func(Board, LayoutWorker){
-		Demo,
-		DemoProgram,
-		SingledLeds,
+func NewLedShowList() []Program {
+	return []Program{
+		Demo2(),
+		Demo(),
+		DemoProgram(),
+		SingledLeds(),
 	}
 }

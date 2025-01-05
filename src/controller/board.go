@@ -8,7 +8,9 @@ import (
 )
 
 type Board interface {
-	LightLeds(s Slicer)
+	BlinkStartup()
+	LightLeds(s Slicer)                      // Lights up a single frame
+	Run(lw LayoutWorker, programs []Program) // Main loop
 }
 
 // ICubeSmart controller board, powered by GD32F103RET6
@@ -32,9 +34,13 @@ type YellowBoard struct {
 	ButtonOnOff     component.InputPin // Main board KEY7, PA11
 
 	// InfraRed // ?, PC6
+
+	speed        uint32
+	programIndex uint32
 }
 
-func NewYellowBoard() *YellowBoard {
+// func NewYellowBoard() *YellowBoard {
+func NewYellowBoard() Board {
 	board := YellowBoard{
 		Demultiplexer: component.NewDemultiplexer(
 			machine.PB0,
@@ -65,11 +71,31 @@ func NewYellowBoard() *YellowBoard {
 		ButtonRunPause:  component.NewInputPin(machine.PA14),
 		ButtonCycle:     component.NewInputPin(machine.PA13),
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
+
+		speed:        10,
+		programIndex: 0,
 	}
 
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
 
 	return &board
+}
+
+func (yb *YellowBoard) Run(lw LayoutWorker, programs []Program) {
+	if len(programs) < 1 {
+		yb.blinkError()
+		return
+	}
+
+	for {
+		for _, action := range programs[yb.programIndex] {
+			lw.ResetBlock()
+			action(lw)
+			for i := uint32(0); i < yb.speed; i++ {
+				yb.LightLeds(lw)
+			}
+		}
+	}
 }
 
 func (yb *YellowBoard) LightLeds(s Slicer) {
@@ -82,20 +108,22 @@ func (yb *YellowBoard) LightLeds(s Slicer) {
 			yb.blinkError()
 		}
 	}
+}
 
-	// for z := uint8(0); z < 8; z++ {
-	// 	if err := yb.LedDriver.LightLayer(s.GetSlice(z)); err != nil {
-	// 		yb.blinkError()
-	// 	}
+func (yb *YellowBoard) BlinkStartup() {
+	for i := 0; i < 3; i++ {
+		yb.LedRed.Pin.Low()
+		yb.LedGreen.Pin.Low()
+		time.Sleep(100 * time.Millisecond)
 
-	// 	if err := yb.Demultiplexer.EnableLayer(z); err != nil {
-	// 		yb.blinkError()
-	// 	}
-	// }
+		yb.LedRed.Pin.High()
+		yb.LedGreen.Pin.High()
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func (yb *YellowBoard) blinkError() {
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		yb.LedRed.Pin.Low()
 		time.Sleep(100 * time.Millisecond)
 

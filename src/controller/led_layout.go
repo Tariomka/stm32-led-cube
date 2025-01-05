@@ -64,9 +64,11 @@ type LedBlockWorker interface {
 }
 
 type Slicer interface {
-	GetSlice(layer uint8) []byte
 	IterateSlices() iter.Seq2[uint8, []byte]
 }
+
+type Frame func(LayoutWorker) // Single frame of a light show program
+type Program []Frame          // Collection of light show frames
 
 // State representation of all led colors of the cube.
 //
@@ -84,20 +86,13 @@ type Slicer interface {
 type LedLayout [8][24]byte
 
 func (ll *LedLayout) IterateSlices() iter.Seq2[uint8, []byte] {
-	return func(namedYield func(i uint8, v []byte) bool) {
+	return func(yield func(i uint8, v []byte) bool) {
 		for zAxis := uint8(0); zAxis < 8; zAxis++ {
-			if !namedYield(zAxis, ll[zAxis][:]) {
+			if !yield(zAxis, ll[zAxis][:]) {
 				return
 			}
 		}
 	}
-}
-
-func (ll *LedLayout) GetSlice(layer uint8) []byte {
-	if err := common.ErrIfOutOfBounds(layer); err != nil {
-		return []byte{}
-	}
-	return ll[layer][:]
 }
 
 func (ll *LedLayout) ChangeSingle(x, y, z uint8, c Color) error {
