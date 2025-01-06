@@ -67,8 +67,8 @@ type Slicer interface {
 	IterateSlices() iter.Seq2[uint8, []byte]
 }
 
-type Frame func(LayoutWorker) // Single frame of a light show program
-type Program []Frame          // Collection of light show frames
+type Frame func(LayoutWorker) // Single frame of a light show
+type LightShow []Frame        // Collection of light show frames
 
 // State representation of all led colors of the cube.
 //

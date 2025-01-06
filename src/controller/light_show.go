@@ -1,6 +1,6 @@
 package controller
 
-func Demo() Program {
+func Demo() LightShow {
 	firstFrame := func(lw LayoutWorker) {
 		lw.SetLayer(0, Red)
 		lw.SetLayer(1, Red)
@@ -22,10 +22,10 @@ func Demo() Program {
 		lw.SetLayer(7, White)
 	}
 
-	return Program{firstFrame, secondFrame}
+	return LightShow{firstFrame, secondFrame}
 }
 
-func Demo2() Program {
+func Demo2() LightShow {
 	firstFrame := func(lw LayoutWorker) {
 		lw.ChangeLayer(0, Violet)
 		lw.ChangeLayer(1, Violet)
@@ -47,11 +47,11 @@ func Demo2() Program {
 		lw.ChangeLayer(7, Red)
 	}
 
-	return Program{firstFrame, secondFrame}
+	return LightShow{firstFrame, secondFrame}
 }
 
-func DemoProgram() Program {
-	return Program{func(lw LayoutWorker) {
+func DemoProgram() LightShow {
+	return LightShow{func(lw LayoutWorker) {
 		for y := uint8(0); y < 8; y++ {
 			lw.SetRowIndividual(y, 0, Red, 0b11111111)
 			lw.SetRowIndividual(y, 1, Red, 0b11111111)
@@ -70,8 +70,8 @@ func DemoProgram() Program {
 	}}
 }
 
-func SingledLeds() Program {
-	return Program{func(lw LayoutWorker) {
+func SingledLeds() LightShow {
+	return LightShow{func(lw LayoutWorker) {
 		lw.SetBlock(Red)
 		lw.SetLayer(7, Blue)
 		lw.SetRow(0, 3, Green)
@@ -79,8 +79,8 @@ func SingledLeds() Program {
 
 }
 
-func NewLedShowList() []Program {
-	return []Program{
+func NewLedShowList() []LightShow {
+	return []LightShow{
 		Demo2(),
 		Demo(),
 		DemoProgram(),

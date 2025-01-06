@@ -9,8 +9,8 @@ import (
 
 type Board interface {
 	BlinkStartup()
-	LightLeds(s Slicer)                      // Lights up a single frame
-	Run(lw LayoutWorker, programs []Program) // Main loop
+	LightLeds(s Slicer)                          // Lights up a single frame
+	Run(lw LayoutWorker, lightShows []LightShow) // Main loop
 }
 
 // ICubeSmart controller board, powered by GD32F103RET6
@@ -81,16 +81,16 @@ func NewYellowBoard() Board {
 	return &board
 }
 
-func (yb *YellowBoard) Run(lw LayoutWorker, programs []Program) {
-	if len(programs) < 1 {
+func (yb *YellowBoard) Run(lw LayoutWorker, lightShows []LightShow) {
+	if len(lightShows) < 1 {
 		yb.blinkError()
 		return
 	}
 
 	for {
-		for _, action := range programs[yb.programIndex] {
+		for _, lightShow := range lightShows[yb.programIndex] {
 			lw.ResetBlock()
-			action(lw)
+			lightShow(lw)
 			for i := uint32(0); i < yb.speed; i++ {
 				yb.LightLeds(lw)
 			}
