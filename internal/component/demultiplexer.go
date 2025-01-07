@@ -3,7 +3,7 @@ package component
 import (
 	"machine"
 
-	"github.com/Tariomka/stm32-led-cube/src/common"
+	"github.com/Tariomka/stm32-led-cube/internal/common"
 )
 
 // Line decoder demultiplexer for providing power to each layer of led cube (Anode control).

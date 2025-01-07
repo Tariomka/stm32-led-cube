@@ -3,7 +3,7 @@ package controller
 import (
 	"iter"
 
-	"github.com/Tariomka/stm32-led-cube/src/common"
+	"github.com/Tariomka/stm32-led-cube/internal/common"
 )
 
 type Color uint8

@@ -4,13 +4,18 @@ import (
 	"machine"
 	"time"
 
-	"github.com/Tariomka/stm32-led-cube/src/component"
+	"github.com/Tariomka/stm32-led-cube/internal/component"
 )
 
 type Board interface {
-	BlinkStartup()
 	LightLeds(s Slicer)                          // Lights up a single frame
 	Run(lw LayoutWorker, lightShows []LightShow) // Main loop
+	Blinker
+}
+
+type Blinker interface {
+	BlinkStartup()
+	BlinkError()
 }
 
 // ICubeSmart controller board, powered by GD32F103RET6
@@ -78,12 +83,20 @@ func NewYellowBoard() Board {
 
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
 
+	// board.ButtonPrevious.Pin.SetInterrupt(machine.PinFalling)
+	// board.ButtonNext
+	// board.ButtonSpeedMore
+	// board.ButtonSpeedLess
+	// board.ButtonRunPause
+	// board.ButtonCycle
+	// board.ButtonOnOff
+
 	return &board
 }
 
 func (yb *YellowBoard) Run(lw LayoutWorker, lightShows []LightShow) {
 	if len(lightShows) < 1 {
-		yb.blinkError()
+		yb.BlinkError()
 		return
 	}
 
@@ -101,11 +114,11 @@ func (yb *YellowBoard) Run(lw LayoutWorker, lightShows []LightShow) {
 func (yb *YellowBoard) LightLeds(s Slicer) {
 	for index, slice := range s.IterateSlices() {
 		if err := yb.LedDriver.LightLayer(slice); err != nil {
-			yb.blinkError()
+			yb.BlinkError()
 		}
 
 		if err := yb.Demultiplexer.EnableLayer(index); err != nil {
-			yb.blinkError()
+			yb.BlinkError()
 		}
 	}
 }
@@ -122,7 +135,7 @@ func (yb *YellowBoard) BlinkStartup() {
 	}
 }
 
-func (yb *YellowBoard) blinkError() {
+func (yb *YellowBoard) BlinkError() {
 	for i := 0; i < 5; i++ {
 		yb.LedRed.Pin.Low()
 		time.Sleep(100 * time.Millisecond)
