@@ -8,14 +8,9 @@ import (
 )
 
 type Board interface {
-	LightLeds(s Slicer)                          // Lights up a single frame
-	Run(lw LayoutWorker, lightShows []LightShow) // Main loop
-	Blinker
-}
-
-type Blinker interface {
-	BlinkStartup()
-	BlinkError()
+	BlinkStartup()      // Startup indicator
+	BlinkError()        // Error indicator
+	LightLeds(s Slicer) // Lights up a single frame
 }
 
 // ICubeSmart controller board, powered by GD32F103RET6
@@ -39,12 +34,8 @@ type YellowBoard struct {
 	ButtonOnOff     component.InputPin // Main board KEY7, PA11
 
 	// InfraRed // ?, PC6
-
-	speed        uint32
-	programIndex uint32
 }
 
-// func NewYellowBoard() *YellowBoard {
 func NewYellowBoard() Board {
 	board := YellowBoard{
 		Demultiplexer: component.NewDemultiplexer(
@@ -76,9 +67,6 @@ func NewYellowBoard() Board {
 		ButtonRunPause:  component.NewInputPin(machine.PA14),
 		ButtonCycle:     component.NewInputPin(machine.PA13),
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
-
-		speed:        10,
-		programIndex: 0,
 	}
 
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
@@ -92,23 +80,6 @@ func NewYellowBoard() Board {
 	// board.ButtonOnOff
 
 	return &board
-}
-
-func (yb *YellowBoard) Run(lw LayoutWorker, lightShows []LightShow) {
-	if len(lightShows) < 1 {
-		yb.BlinkError()
-		return
-	}
-
-	for {
-		for _, lightShow := range lightShows[yb.programIndex] {
-			lw.ResetBlock()
-			lightShow(lw)
-			for i := uint32(0); i < yb.speed; i++ {
-				yb.LightLeds(lw)
-			}
-		}
-	}
 }
 
 func (yb *YellowBoard) LightLeds(s Slicer) {
