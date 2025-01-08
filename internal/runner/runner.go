@@ -18,10 +18,12 @@ func NewRunner(config RunnerConfic) Runner {
 		return nil
 	}
 
+	tracker := controller.NewStateTracker()
+
 	return &CubeRunner{
 		LayoutWorker: &controller.LedLayout{},
-		Board:        controller.NewYellowBoard(),
-		Tracker:      controller.NewStateTracker(),
+		Board:        controller.NewYellowBoard(tracker),
+		Tracker:      tracker,
 	}
 }
 

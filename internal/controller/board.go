@@ -36,7 +36,7 @@ type YellowBoard struct {
 	// InfraRed // ?, PC6
 }
 
-func NewYellowBoard() Board {
+func NewYellowBoard(tracker *StateTracker) Board {
 	board := YellowBoard{
 		Demultiplexer: component.NewDemultiplexer(
 			machine.PB0,
@@ -71,12 +71,24 @@ func NewYellowBoard() Board {
 
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
 
-	// board.ButtonPrevious.Pin.SetInterrupt(machine.PinFalling)
-	// board.ButtonNext
-	// board.ButtonSpeedMore
-	// board.ButtonSpeedLess
-	// board.ButtonRunPause
-	// board.ButtonCycle
+	board.ButtonPrevious.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		tracker.PrevLightShow()
+	})
+	board.ButtonNext.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		tracker.NextLightShow()
+	})
+	board.ButtonSpeedMore.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		tracker.IncreaseSpeed()
+	})
+	board.ButtonSpeedLess.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		tracker.DecreadeSpeed()
+	})
+	board.ButtonRunPause.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		tracker.SwitchRunPause()
+	})
+	board.ButtonCycle.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		tracker.CycleMode()
+	})
 	// board.ButtonOnOff
 
 	return &board

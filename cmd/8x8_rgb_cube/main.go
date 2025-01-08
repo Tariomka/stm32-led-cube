@@ -7,5 +7,7 @@ import (
 
 func main() {
 	runner := runner.NewRunner(runner.NewConfig())
-	runner.Start(show.NewLedShowList())
+	if runner != nil {
+		runner.Start(show.NewLedShowList())
+	}
 }
