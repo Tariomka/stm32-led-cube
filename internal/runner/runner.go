@@ -46,14 +46,12 @@ func (cr *CubeRunner) Start() {
 }
 
 func (cr *CubeRunner) runOnboardLoop() {
-	for {
-		for _, frameCallback := range cr.Tracker.CurrentLightShow() {
-			cr.LayoutWorker.ResetBlock()
-			frameCallback(cr.LayoutWorker)
-			cr.Tracker.ExecuteFrame(func() {
-				cr.Board.LightLeds(cr.LayoutWorker)
-			})
-		}
+	for _, frameCallback := range cr.Tracker.CurrentLightShow() {
+		cr.LayoutWorker.ResetBlock()
+		frameCallback(cr.LayoutWorker)
+		cr.Tracker.ExecuteFrame(func() {
+			cr.Board.LightLeds(cr.LayoutWorker)
+		})
 	}
 }
 
