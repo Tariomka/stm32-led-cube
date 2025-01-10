@@ -1,13 +1,9 @@
 package main
 
-import (
-	"github.com/Tariomka/stm32-led-cube/internal/runner"
-	"github.com/Tariomka/stm32-led-cube/internal/show"
-)
+import "github.com/Tariomka/stm32-led-cube/internal/runner"
 
 func main() {
-	runner := runner.NewRunner(runner.NewConfig())
-	if runner != nil {
-		runner.Start(show.NewLedShowList())
+	if runner := runner.NewRunner(runner.NewConfig()); runner != nil {
+		runner.Start()
 	}
 }

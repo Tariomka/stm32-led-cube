@@ -3,22 +3,25 @@ package runner
 import "github.com/Tariomka/stm32-led-cube/internal/controller"
 
 type Runner interface {
-	Start(ls []controller.LightShow)
+	Start()
+}
+
+type RunnerLoop interface {
 }
 
 type CubeRunner struct {
 	Board        controller.Board
 	LayoutWorker controller.LayoutWorker
 	Tracker      *controller.StateTracker
-	// LightShows   []controller.LightShow
 }
 
 func NewRunner(config RunnerConfic) Runner {
+	// TODO: implement other cube sizes/types
 	if config.BaseSize != Size8 || config.Height != Size8 || config.LedType != RGB {
 		return nil
 	}
 
-	tracker := controller.NewStateTracker()
+	tracker := controller.NewStateTracker(config.LightShows)
 
 	return &CubeRunner{
 		LayoutWorker: &controller.LedLayout{},
@@ -27,45 +30,29 @@ func NewRunner(config RunnerConfic) Runner {
 	}
 }
 
-func (cr *CubeRunner) Start(ls []controller.LightShow) {
+func (cr *CubeRunner) Start() {
 	cr.Board.BlinkStartup()
-
-	if len(ls) < 1 {
-		cr.Tracker.EnableOnboardMode(false)
-	}
 
 	for {
 		switch cr.Tracker.CurrentMode {
 		case controller.OnboardMode:
-			cr.runOnboardLoop(ls)
+			cr.runOnboardLoop()
 		case controller.DebugMode:
 			cr.runDebugLoop()
 		case controller.SerialMode:
 			cr.runSerialLoop()
 		}
-
 	}
 }
 
-func (cr *CubeRunner) runOnboardLoop(ls []controller.LightShow) {
+func (cr *CubeRunner) runOnboardLoop() {
 	for {
-		if cr.Tracker.DisableOnboard {
-			return
-		}
-
-		if cr.Tracker.Pause {
-			// Continue might work as well, but there still needs to be a return for when Mode is changed
-			// This needs to be in the for loop below, so pausing can occur mid way through a show
-			// ?and somehow a state needs to be tracked to continue from the last paused frame?
-			return
-		}
-
-		for _, lightShow := range ls[cr.Tracker.LightShowIndex] {
+		for _, frameCallback := range cr.Tracker.CurrentLightShow() {
 			cr.LayoutWorker.ResetBlock()
-			lightShow(cr.LayoutWorker)
-			for i := uint32(0); i < cr.Tracker.AnimationSpeed; i++ {
+			frameCallback(cr.LayoutWorker)
+			cr.Tracker.ExecuteFrame(func() {
 				cr.Board.LightLeds(cr.LayoutWorker)
-			}
+			})
 		}
 	}
 }

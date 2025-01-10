@@ -10,24 +10,44 @@ const (
 )
 
 type StateTracker struct {
-	AnimationSpeed uint32 // Speed denoted how many times a frame should be shown
-	LightShowIndex uint32
-	Pause          bool
-	colorDepth     uint8
-	CurrentMode    Mode
-	previousMode   Mode
-	DisableOnboard bool
+	CurrentMode          Mode
+	colorDepth           uint8
+	frameRepetitionCount uint32
+	lightShowIndex       uint32
+	lightShows           []LightShow
+	pause                bool
+	previousMode         Mode
 }
 
-func NewStateTracker() *StateTracker {
+func NewStateTracker(ls []LightShow) *StateTracker {
 	return &StateTracker{
-		AnimationSpeed: 1,
-		LightShowIndex: 0,
-		Pause:          false,
-		colorDepth:     1,
-		CurrentMode:    OnboardMode,
-		previousMode:   StandbyMode,
-		DisableOnboard: false,
+		CurrentMode:          OnboardMode,
+		colorDepth:           1,
+		frameRepetitionCount: 1,
+		lightShowIndex:       0,
+		lightShows:           ls,
+		pause:                false,
+		previousMode:         StandbyMode,
+	}
+}
+
+func (st *StateTracker) CurrentLightShow() LightShow {
+	if len(st.lightShows) < 1 {
+		return []Frame{}
+	}
+
+	return st.lightShows[st.lightShowIndex]
+}
+
+func (st *StateTracker) ExecuteFrame(frameCallback func()) {
+	// TODO: implement colorDepth as well.
+	// Most likely this function will need to be refactored to func(Board, LayoutWorker) signature
+	for st.pause {
+		frameCallback()
+	}
+
+	for i := uint32(0); i < st.frameRepetitionCount; i++ {
+		frameCallback()
 	}
 }
 
@@ -46,25 +66,27 @@ func (st *StateTracker) CycleMode() {
 }
 
 func (st *StateTracker) NextLightShow() {
-	st.LightShowIndex++
+	st.lightShowIndex++
+	if st.lightShowIndex >= uint32(len(st.lightShows)) || st.lightShowIndex == ^uint32(0) {
+		st.lightShowIndex = 0
+	}
 }
 
 func (st *StateTracker) PrevLightShow() {
-	st.LightShowIndex--
+	if st.lightShowIndex == 0 {
+		st.lightShowIndex = uint32(len(st.lightShows))
+	}
+	st.lightShowIndex--
 }
 
 func (st *StateTracker) IncreaseSpeed() {
-	st.AnimationSpeed -= 2
+	st.frameRepetitionCount -= 2
 }
 
 func (st *StateTracker) DecreadeSpeed() {
-	st.AnimationSpeed += 2
+	st.frameRepetitionCount += 2
 }
 
 func (st *StateTracker) SwitchRunPause() {
-	st.Pause = !st.Pause
-}
-
-func (st *StateTracker) EnableOnboardMode(enable bool) {
-	st.DisableOnboard = !enable
+	st.pause = !st.pause
 }

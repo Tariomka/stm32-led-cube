@@ -89,7 +89,9 @@ func NewYellowBoard(tracker *StateTracker) Board {
 	board.ButtonCycle.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
 		tracker.CycleMode()
 	})
-	// board.ButtonOnOff
+	board.ButtonOnOff.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+		// TODO: add sleep mode logic
+	})
 
 	return &board
 }
@@ -121,9 +123,9 @@ func (yb *YellowBoard) BlinkStartup() {
 func (yb *YellowBoard) BlinkError() {
 	for i := 0; i < 5; i++ {
 		yb.LedRed.Pin.Low()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		yb.LedRed.Pin.High()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 }

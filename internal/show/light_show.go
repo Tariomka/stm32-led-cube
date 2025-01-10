@@ -83,8 +83,8 @@ func SingledLeds() controller.LightShow {
 
 func NewLedShowList() []controller.LightShow {
 	return []controller.LightShow{
-		Demo2(),
 		Demo(),
+		Demo2(),
 		DemoProgram(),
 		SingledLeds(),
 	}
