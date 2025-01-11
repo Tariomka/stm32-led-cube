@@ -5,3 +5,4 @@
 3. Code editor, ex. VS Code.
 4. GNU Make.
 5. Git.
+6. STM32CubeProgrammer for flashing GD32 chip: [download link](https://www.st.com/en/development-tools/stm32cubeprog.html)
