@@ -42,6 +42,8 @@ func (st *StateTracker) CurrentLightShow() LightShow {
 func (st *StateTracker) ExecuteFrame(frameCallback func()) {
 	// TODO: implement colorDepth as well.
 	// Most likely this function will need to be refactored to func(Board, LayoutWorker) signature
+
+	// Put this to frame loop to preserve frame loop possition and not need to wait for frame to finish?
 	for st.pause {
 		frameCallback()
 	}
@@ -80,11 +82,19 @@ func (st *StateTracker) PrevLightShow() {
 }
 
 func (st *StateTracker) IncreaseSpeed() {
-	st.frameRepetitionCount -= 2
+	if st.frameRepetitionCount > 2 {
+		st.frameRepetitionCount -= 2
+	} else {
+		st.frameRepetitionCount = 1
+	}
 }
 
 func (st *StateTracker) DecreadeSpeed() {
-	st.frameRepetitionCount += 2
+	if st.frameRepetitionCount < ^uint32(2) {
+		st.frameRepetitionCount += 2
+	} else {
+		st.frameRepetitionCount = ^uint32(0)
+	}
 }
 
 func (st *StateTracker) SwitchRunPause() {
