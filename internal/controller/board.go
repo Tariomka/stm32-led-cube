@@ -127,7 +127,7 @@ func (yb *YellowBoard) BlinkDebug() {
 	yb.LedGreen.Pin.Low()
 	time.Sleep(200 * time.Millisecond)
 	yb.LedGreen.Pin.High()
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 }
 
 func (yb *YellowBoard) BlinkError() {
