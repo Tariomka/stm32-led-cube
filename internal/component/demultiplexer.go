@@ -11,7 +11,7 @@ type Demultiplexer struct {
 	MultiA0     OutputPin // Demultiplexer address input 0, PB0
 	MultiA1     OutputPin // Demultiplexer address input 1, PB1
 	MultiA2     OutputPin // Demultiplexer address input 2, PB10
-	MultiEnable OutputPin // Demultiplexer Enable pin, PA8
+	MultiEnable OutputPin // Demultiplexer Enable pin, PA8. High turns off, Low turns on
 }
 
 func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
@@ -29,7 +29,7 @@ func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
 	en2.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	en2.High()
 
-	demux.MultiEnable.Pin.Low()
+	demux.MultiEnable.Pin.High()
 	return demux
 }
 
@@ -38,9 +38,20 @@ func (demux Demultiplexer) EnableLayer(index uint8) error {
 		return err
 	}
 
+	demux.MultiEnable.Pin.Low()
 	demux.MultiA0.Pin.Set(index&1 == 1)
 	demux.MultiA1.Pin.Set(index>>1&1 == 1)
 	demux.MultiA2.Pin.Set(index>>2&1 == 1)
 
 	return nil
+}
+
+func (demux Demultiplexer) Disable() {
+	demux.MultiEnable.Pin.High()
+}
+
+// ======================================
+// To Be Deleted
+func (demux Demultiplexer) Enable() {
+	demux.MultiEnable.Pin.Low()
 }

@@ -8,9 +8,12 @@ import (
 )
 
 type Board interface {
-	BlinkStartup()      // Startup indicator
+	BlinkStartup() // Startup indicator
+	BlinkDebug()
 	BlinkError()        // Error indicator
 	LightLeds(s Slicer) // Lights up a single frame
+	DisableLeds()
+	EnableLeds()
 }
 
 // ICubeSmart controller board, powered by GD32F103RET6
@@ -71,25 +74,25 @@ func NewYellowBoard(tracker *StateTracker) Board {
 
 	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
 
-	board.ButtonPrevious.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonPrevious.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		tracker.PrevLightShow()
 	})
-	board.ButtonNext.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonNext.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		tracker.NextLightShow()
 	})
-	board.ButtonSpeedMore.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonSpeedMore.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		tracker.IncreaseSpeed()
 	})
-	board.ButtonSpeedLess.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonSpeedLess.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		tracker.DecreadeSpeed()
 	})
-	board.ButtonRunPause.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonRunPause.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		tracker.SwitchRunPause()
 	})
-	board.ButtonCycle.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonCycle.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		tracker.CycleMode()
 	})
-	board.ButtonOnOff.Pin.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
+	board.ButtonOnOff.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		// TODO: add sleep mode logic
 	})
 
@@ -112,12 +115,19 @@ func (yb *YellowBoard) BlinkStartup() {
 	for i := 0; i < 3; i++ {
 		yb.LedRed.Pin.Low()
 		yb.LedGreen.Pin.Low()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		yb.LedRed.Pin.High()
 		yb.LedGreen.Pin.High()
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func (yb *YellowBoard) BlinkDebug() {
+	yb.LedGreen.Pin.Low()
+	time.Sleep(200 * time.Millisecond)
+	yb.LedGreen.Pin.High()
+	time.Sleep(50 * time.Millisecond)
 }
 
 func (yb *YellowBoard) BlinkError() {
@@ -128,4 +138,14 @@ func (yb *YellowBoard) BlinkError() {
 		yb.LedRed.Pin.High()
 		time.Sleep(200 * time.Millisecond)
 	}
+}
+
+// ===============================================
+// To Be Deleted
+func (yb *YellowBoard) DisableLeds() {
+	yb.Demultiplexer.Disable()
+}
+
+func (yb *YellowBoard) EnableLeds() {
+	yb.Demultiplexer.Enable()
 }

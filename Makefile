@@ -8,14 +8,15 @@ else
 endif
 
 build: create
-	@echo "Starting to compile Tinygo binary, please wait..."
+	@echo Starting to compile Tinygo binary, please wait...
 	@tinygo build -o ./$(BIN_DIR)/main_8x8_rgb.elf -target=bluepill-clone ./cmd/8x8_rgb_cube/main.go
-	@echo "Build finished."
+	@echo Build finished.
 
 build_version: create
-	@echo "Starting to compile versioned Tinygo binary, please wait..."
+	@echo Starting to compile versioned Tinygo binary, please wait...
 	@tinygo build -o ./$(BIN_DIR)/main_8x8_rgb_$(VERSION).hex -target=bluepill-clone -size full ./cmd/8x8_rgb_cube/main.go
-	@echo "Build finished."
+	@echo Created 'main_8x8_rgb_$(VERSION).hex' binary file.
+	@echo Build finished.
 
 create:
 	@if not exist $(BIN_DIR) mkdir $(BIN_DIR)

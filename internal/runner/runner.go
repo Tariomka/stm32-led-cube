@@ -56,9 +56,12 @@ func (cr *CubeRunner) runOnboardLoop() {
 }
 
 func (cr *CubeRunner) runDebugLoop() {
-	return
+	// Placeholder
+	cr.Board.BlinkDebug()
+	cr.Board.EnableLeds()
 }
 
 func (cr *CubeRunner) runSerialLoop() {
-	return
+	// Placeholder
+	cr.Board.DisableLeds()
 }
