@@ -7,7 +7,7 @@ type InputPin struct{ Pin machine.Pin }
 
 func NewInputPin(pin machine.Pin) InputPin {
 	input := InputPin{Pin: pin}
-	input.Pin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+	input.Pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	return input
 }
 
