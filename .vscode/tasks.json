@@ -10,7 +10,7 @@
 				"kind": "build",
 				"isDefault": true
 			},
-			"detail": "tinygo build -o ./build/main.hex -target=bluepill-clone ./src/main.go"
+			"detail": "tinygo build -o ./bin/main.hex -target=bluepill-clone ./cmd/8x8_rgb_cube/main.go"
 		}
 	]
 }
