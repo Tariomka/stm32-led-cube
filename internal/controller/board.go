@@ -87,6 +87,8 @@ func NewYellowBoard(tracker *StateTracker) Board {
 		tracker.DecreadeSpeed()
 	})
 	board.ButtonRunPause.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		// TODO: Investigate why doesn't this(PA14 pin/Key 5) button work
+		// As far as I see, it's the correct button but the Pullup configuration isn't being set correctly.
 		tracker.SwitchRunPause()
 	})
 	board.ButtonCycle.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
@@ -94,6 +96,7 @@ func NewYellowBoard(tracker *StateTracker) Board {
 	})
 	board.ButtonOnOff.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		// TODO: add sleep mode logic
+		tracker.SwitchRunPause()
 	})
 
 	return &board
