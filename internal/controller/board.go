@@ -4,14 +4,15 @@ import (
 	"machine"
 	"time"
 
+	"github.com/Tariomka/led-common-lib/pkg/led"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 )
 
 type Board interface {
 	BlinkStartup() // Startup indicator
 	BlinkDebug()
-	BlinkError()        // Error indicator
-	LightLeds(s Slicer) // Lights up a single frame
+	BlinkError()            // Error indicator
+	LightLeds(s led.Slicer) // Lights up a single frame
 	DisableLeds()
 	EnableLeds()
 }
@@ -102,7 +103,7 @@ func NewYellowBoard(tracker *StateTracker) Board {
 	return &board
 }
 
-func (yb *YellowBoard) LightLeds(s Slicer) {
+func (yb *YellowBoard) LightLeds(s led.Slicer) {
 	for index, slice := range s.IterateSlices() {
 		if err := yb.LedDriver.LightLayer(slice); err != nil {
 			yb.BlinkError()

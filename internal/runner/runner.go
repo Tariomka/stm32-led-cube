@@ -1,6 +1,9 @@
 package runner
 
-import "github.com/Tariomka/stm32-led-cube/internal/controller"
+import (
+	"github.com/Tariomka/led-common-lib/pkg/led"
+	"github.com/Tariomka/stm32-led-cube/internal/controller"
+)
 
 type Runner interface {
 	Start()
@@ -11,7 +14,7 @@ type RunnerLoop interface {
 
 type CubeRunner struct {
 	Board        controller.Board
-	LayoutWorker controller.LayoutWorker
+	LayoutWorker led.LayoutWorker
 	Tracker      *controller.StateTracker
 }
 
@@ -24,7 +27,7 @@ func NewRunner(config RunnerConfic) Runner {
 	tracker := controller.NewStateTracker(config.LightShows)
 
 	return &CubeRunner{
-		LayoutWorker: &controller.LedLayout{},
+		LayoutWorker: &led.LedLayout{},
 		Board:        controller.NewYellowBoard(tracker),
 		Tracker:      tracker,
 	}

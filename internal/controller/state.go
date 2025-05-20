@@ -1,5 +1,7 @@
 package controller
 
+import "github.com/Tariomka/led-common-lib/pkg/led"
+
 type Mode uint8
 
 const (
@@ -14,12 +16,12 @@ type StateTracker struct {
 	colorDepth           uint8
 	frameRepetitionCount uint32
 	lightShowIndex       uint32
-	lightShows           []LightShow
+	lightShows           []led.LightShow
 	pause                bool
 	previousMode         Mode
 }
 
-func NewStateTracker(ls []LightShow) *StateTracker {
+func NewStateTracker(ls []led.LightShow) *StateTracker {
 	return &StateTracker{
 		CurrentMode:          OnboardMode,
 		colorDepth:           1,
@@ -31,9 +33,9 @@ func NewStateTracker(ls []LightShow) *StateTracker {
 	}
 }
 
-func (st *StateTracker) CurrentLightShow() LightShow {
+func (st *StateTracker) CurrentLightShow() led.LightShow {
 	if len(st.lightShows) < 1 {
-		return []Frame{}
+		return []led.Frame{}
 	}
 
 	return st.lightShows[st.lightShowIndex]

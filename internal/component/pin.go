@@ -20,7 +20,7 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 	return output
 }
 
-func NewSpiOutput(spi machine.SPI, sck, sdo machine.Pin) machine.SPI {
+func NewSpiOutput(spi *machine.SPI, sck, sdo machine.Pin) *machine.SPI {
 	spi.Configure(machine.SPIConfig{
 		Frequency: 100 * machine.KHz,
 		SCK:       sck,

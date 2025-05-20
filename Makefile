@@ -19,7 +19,7 @@ build_version: create
 	@echo Build finished.
 
 create:
-	@if not exist $(BIN_DIR) mkdir $(BIN_DIR)
+	@if [ ! -d $(BIN_DIR) ]; then mkdir $(BIN_DIR); fi
 
 clean:
 	@$(RM) $(BIN_DIR)

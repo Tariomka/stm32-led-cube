@@ -8,13 +8,13 @@ type LedDriver struct {
 	// SPI interface for communicating with shift register. SPI uses:
 	// (SPI_CLOCK)Clock input terminal for data shift on rising edge, PA5;
 	// (SPI_MOSI)Serial-data input to the shift register, PA7.
-	spi machine.SPI
+	spi *machine.SPI
 
 	latch OutputPin // (Latch)Data strobe input terminal, when LOW - data is latched, when HIGH - data is transfered, PC4
 	blank OutputPin // (Blank)Output enable terminal, when LOW - output drivers are enabled, when HIGH - output is blanked, PC5
 }
 
-func NewLedDriver(spi machine.SPI, sck, sdo, le, oe machine.Pin) *LedDriver {
+func NewLedDriver(spi *machine.SPI, sck, sdo, le, oe machine.Pin) *LedDriver {
 	ld := LedDriver{
 		spi:   NewSpiOutput(spi, sck, sdo),
 		latch: NewOutputPin(le),
