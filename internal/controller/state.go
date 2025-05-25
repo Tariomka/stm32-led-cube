@@ -34,8 +34,8 @@ func NewStateTracker(ls []led.LightShow) *StateTracker {
 }
 
 func (st *StateTracker) CurrentLightShow() led.LightShow {
-	if len(st.lightShows) < 1 {
-		return []led.Frame{}
+	if len(st.lightShows) < 1 || st.lightShowIndex >= uint32(len(st.lightShows)) {
+		return nil
 	}
 
 	return st.lightShows[st.lightShowIndex]
@@ -44,6 +44,7 @@ func (st *StateTracker) CurrentLightShow() led.LightShow {
 func (st *StateTracker) ExecuteFrame(frameCallback func()) {
 	// TODO: implement colorDepth as well.
 	// Most likely this function will need to be refactored to func(Board, LayoutWorker) signature
+	// For the time being colorDepth is implicit - frames switch so fast, it works as colorDepth
 
 	// Put this to frame loop to preserve frame loop possition and not need to wait for frame to finish?
 	for st.pause {

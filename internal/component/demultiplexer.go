@@ -22,14 +22,10 @@ func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
 		MultiEnable: NewOutputPin(en1),
 	}
 
-	// For 8x8x8 cube, the fourth address input needs to always be Low
-	a3.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	a3.Low()
+	NewOutputPin(a3).Low() // For 8x8x8 cube, the fourth address input needs to always be Low
+	NewOutputPin(en2).High()
 
-	en2.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	en2.High()
-
-	demux.MultiEnable.Pin.High()
+	demux.MultiEnable.High()
 	return demux
 }
 
@@ -38,20 +34,18 @@ func (demux Demultiplexer) EnableLayer(index uint8) error {
 		return err
 	}
 
-	demux.MultiEnable.Pin.Low()
-	demux.MultiA0.Pin.Set(index&1 == 1)
-	demux.MultiA1.Pin.Set(index>>1&1 == 1)
-	demux.MultiA2.Pin.Set(index>>2&1 == 1)
+	demux.MultiEnable.Low()
+	demux.MultiA0.Set(index&1 == 1)
+	demux.MultiA1.Set(index>>1&1 == 1)
+	demux.MultiA2.Set(index>>2&1 == 1)
 
 	return nil
 }
 
 func (demux Demultiplexer) Disable() {
-	demux.MultiEnable.Pin.High()
+	demux.MultiEnable.High()
 }
 
-// ======================================
-// To Be Deleted
 func (demux Demultiplexer) Enable() {
-	demux.MultiEnable.Pin.Low()
+	demux.MultiEnable.Low()
 }

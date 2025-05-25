@@ -3,26 +3,26 @@ package component
 import "machine"
 
 // Pin that's setup for Input mode
-type InputPin struct{ Pin machine.Pin }
+type InputPin struct{ machine.Pin }
 
 func NewInputPin(pin machine.Pin) InputPin {
 	input := InputPin{Pin: pin}
-	input.Pin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	input.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
 	return input
 }
 
 // Pin that's setup for Output mode
-type OutputPin struct{ Pin machine.Pin }
+type OutputPin struct{ machine.Pin }
 
 func NewOutputPin(pin machine.Pin) OutputPin {
 	output := OutputPin{Pin: pin}
-	output.Pin.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	output.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	return output
 }
 
 func NewSpiOutput(spi *machine.SPI, sck, sdo machine.Pin) *machine.SPI {
 	spi.Configure(machine.SPIConfig{
-		Frequency: 100 * machine.KHz,
+		Frequency: 25 * machine.MHz, // Max should be around 32mhz
 		SCK:       sck,
 		SDO:       sdo,
 		LSBFirst:  true,

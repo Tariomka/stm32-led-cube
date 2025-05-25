@@ -20,15 +20,15 @@ const (
 	RGB
 )
 
-type RunnerConfic struct {
+type RunnerConfig struct {
 	BaseSize   Size
 	Height     Size
 	LedType    LedType
 	LightShows []led.LightShow
 }
 
-func NewConfig() RunnerConfic {
-	return RunnerConfic{
+func NewConfig() RunnerConfig {
+	return RunnerConfig{
 		BaseSize:   Size8,
 		Height:     Size8,
 		LedType:    RGB,

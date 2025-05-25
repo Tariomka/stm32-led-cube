@@ -2,6 +2,34 @@ package show
 
 import "github.com/Tariomka/led-common-lib/pkg/led"
 
+func SingleLed() led.LightShow {
+	return led.LightShow{
+		func(lw led.LayoutWorker) {
+			lw.SetSingle(1, 1, 1, led.Red)
+		},
+		func(lw led.LayoutWorker) {
+			lw.SetSingle(1, 3, 1, led.Red)
+			lw.SetSingle(1, 5, 1, led.Red)
+		},
+		func(lw led.LayoutWorker) {
+			lw.SetSingle(1, 3, 1, led.Red)
+			lw.SetSingle(1, 5, 1, led.Red)
+		},
+		func(lw led.LayoutWorker) {
+			lw.SetSingle(1, 3, 1, led.Red)
+			lw.SetSingle(1, 5, 1, led.Yellow)
+		},
+		func(lw led.LayoutWorker) {
+			lw.SetSingle(1, 3, 1, led.Red)
+			lw.SetSingle(1, 5, 1, led.Yellow)
+		},
+		func(lw led.LayoutWorker) {
+			lw.SetSingle(1, 3, 1, led.Red)
+			lw.SetSingle(1, 5, 1, led.Green)
+		},
+	}
+}
+
 func Demo() led.LightShow {
 	firstFrame := func(lw led.LayoutWorker) {
 		lw.SetLayer(0, led.Red)
@@ -85,6 +113,7 @@ func NewLedShowList() []led.LightShow {
 	return []led.LightShow{
 		Demo(),
 		Demo2(),
+		SingleLed(),
 		DemoProgram(),
 		SingledLeds(),
 	}

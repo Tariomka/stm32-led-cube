@@ -1,18 +1,20 @@
 package controller
 
 import (
+	"device/stm32"
 	"machine"
-	"time"
 
 	"github.com/Tariomka/led-common-lib/pkg/led"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
+	"github.com/Tariomka/stm32-led-cube/internal/component/registers"
 )
 
 type Board interface {
-	BlinkStartup() // Startup indicator
-	BlinkDebug()
-	BlinkError()            // Error indicator
-	LightLeds(s led.Slicer) // Lights up a single frame
+	LightLeds(s led.Slicer)            // Lights up a single frame
+	Send(message string)               // Sends message over UART
+	Receive() []byte                   // Receives data from UART
+	GetIndicator() component.Indicator // Gets onboard led indicator
+
 	DisableLeds()
 	EnableLeds()
 }
@@ -22,12 +24,16 @@ type YellowBoard struct {
 	Demultiplexer component.Demultiplexer // (74HC154) Provides power to each layer of led cube
 	LedDriver     *component.LedDriver    // (MBI5024GP/GF) Shift register led driver
 
-	UartOnboard *machine.UART // Onboard UART serial connection, RX - PA10, TX - PA9
-	// UartMainBoard *machine.UART // Main board UART serial connection, RX - PA3, TX - PA2
+	UartOnboard *component.UART // Onboard UART serial connection, RX - PA10, TX - PA9
+	// UartMainBoard *machine.UART // Main board UART serial connection (3.5 jacks), RX - PA3, TX - PA2
 	// I2C *machine.I2C // (24C02) , SDA - PB7, SCL - PB6
 
-	LedGreen component.OutputPin // Onboard Green Led - D1, pin PB9. Cathode control
-	LedRed   component.OutputPin // Onboard Red Led - D2, pin PB8. Cathode control
+	// Onboard leds:
+	//
+	// Green led -> D1, pin PB9
+	//
+	// Red led -> D2, pin PB8
+	LedsOnboard component.OnboardLeds
 
 	ButtonPrevious  component.InputPin // Main board KEY1, PC0
 	ButtonNext      component.InputPin // Main board KEY2, PC1
@@ -41,6 +47,8 @@ type YellowBoard struct {
 }
 
 func NewYellowBoard(tracker *StateTracker) Board {
+	registers.DisableJTAG() // Required for PA14 to work correctly
+
 	board := YellowBoard{
 		Demultiplexer: component.NewDemultiplexer(
 			machine.PB0,
@@ -57,13 +65,8 @@ func NewYellowBoard(tracker *StateTracker) Board {
 			machine.PC4,
 			machine.PC5,
 		),
-
-		UartOnboard: machine.UART1,
 		// I2C: NewOnBoardI2C(),
-
-		LedGreen: component.NewOutputPin(machine.PB9),
-		LedRed:   component.NewOutputPin(machine.PB8),
-
+		LedsOnboard:     component.NewOnboardLeds(machine.PB9, machine.PB8),
 		ButtonPrevious:  component.NewInputPin(machine.PC0),
 		ButtonNext:      component.NewInputPin(machine.PC1),
 		ButtonSpeedMore: component.NewInputPin(machine.PC2),
@@ -72,84 +75,80 @@ func NewYellowBoard(tracker *StateTracker) Board {
 		ButtonCycle:     component.NewInputPin(machine.PA13),
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
 	}
-
-	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
-
-	board.ButtonPrevious.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.PrevLightShow()
-	})
-	board.ButtonNext.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.NextLightShow()
-	})
-	board.ButtonSpeedMore.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.IncreaseSpeed()
-	})
-	board.ButtonSpeedLess.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.DecreadeSpeed()
-	})
-	board.ButtonRunPause.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		// TODO: Investigate why doesn't this(PA14 pin/Key 5) button work
-		// As far as I see, it's the correct button but the Pullup configuration isn't being set correctly.
-		tracker.SwitchRunPause()
-	})
-	board.ButtonCycle.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.CycleMode()
-	})
-	board.ButtonOnOff.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		// TODO: add sleep mode logic
-		tracker.SwitchRunPause()
-	})
+	board.UartOnboard = component.NewUart(machine.UART1, board.LedsOnboard.BlinkError)
+	board.setInterrupts(tracker)
 
 	return &board
 }
 
-func (yb *YellowBoard) LightLeds(s led.Slicer) {
+func (this *YellowBoard) LightLeds(s led.Slicer) {
 	for index, slice := range s.IterateSlices() {
-		if err := yb.LedDriver.LightLayer(slice); err != nil {
-			yb.BlinkError()
+		if err := this.LedDriver.LightLayer(slice); err != nil {
+			this.LedsOnboard.BlinkError()
 		}
 
-		if err := yb.Demultiplexer.EnableLayer(index); err != nil {
-			yb.BlinkError()
+		if err := this.Demultiplexer.EnableLayer(index); err != nil {
+			this.LedsOnboard.BlinkError()
 		}
 	}
 }
 
-func (yb *YellowBoard) BlinkStartup() {
-	for i := 0; i < 3; i++ {
-		yb.LedRed.Pin.Low()
-		yb.LedGreen.Pin.Low()
-		time.Sleep(200 * time.Millisecond)
-
-		yb.LedRed.Pin.High()
-		yb.LedGreen.Pin.High()
-		time.Sleep(100 * time.Millisecond)
-	}
+func (this *YellowBoard) Send(message string) {
+	this.UartOnboard.Send(message)
 }
 
-func (yb *YellowBoard) BlinkDebug() {
-	yb.LedGreen.Pin.Low()
-	time.Sleep(200 * time.Millisecond)
-	yb.LedGreen.Pin.High()
-	time.Sleep(100 * time.Millisecond)
+func (this *YellowBoard) Receive() []byte {
+	return this.UartOnboard.Receive()
 }
 
-func (yb *YellowBoard) BlinkError() {
-	for i := 0; i < 5; i++ {
-		yb.LedRed.Pin.Low()
-		time.Sleep(200 * time.Millisecond)
-
-		yb.LedRed.Pin.High()
-		time.Sleep(200 * time.Millisecond)
-	}
+func (this *YellowBoard) GetIndicator() component.Indicator {
+	return this.LedsOnboard
 }
 
 // ===============================================
-// To Be Deleted
-func (yb *YellowBoard) DisableLeds() {
-	yb.Demultiplexer.Disable()
+// To Be Deleted ?
+func (this *YellowBoard) DisableLeds() {
+	this.Demultiplexer.Disable()
 }
 
-func (yb *YellowBoard) EnableLeds() {
-	yb.Demultiplexer.Enable()
+func (this *YellowBoard) EnableLeds() {
+	this.Demultiplexer.Enable()
+}
+
+// ===============================================
+
+func (this *YellowBoard) setInterrupts(tracker *StateTracker) {
+	this.ButtonPrevious.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 1 pressed")
+		tracker.PrevLightShow()
+	})
+	this.ButtonNext.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 2 pressed")
+		tracker.NextLightShow()
+	})
+	this.ButtonSpeedMore.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 3 ressed")
+		tracker.IncreaseSpeed()
+	})
+	this.ButtonSpeedLess.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 4 pressed")
+		tracker.DecreadeSpeed()
+	})
+	this.ButtonRunPause.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 5 pressed")
+		tracker.CycleMode()
+	})
+	this.ButtonCycle.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 6 pressed")
+		tracker.CycleMode()
+	})
+	this.ButtonOnOff.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		// TODO: add sleep mode logic
+		println("Key 7 pressed")
+
+		println("RCC APB2ENR AFIO enable: ", stm32.RCC.GetAPB2ENR_AFIOEN()) // Delay after an RCC peripheral clock enabling
+		println("AFIO MAPR SWJ CFG value: ", stm32.AFIO.GetMAPR_SWJ_CFG())  // JTAG-DP and SW-DP disabled
+		println("Button 5 value: ", this.ButtonRunPause.Get())
+		tracker.SwitchRunPause()
+	})
 }
