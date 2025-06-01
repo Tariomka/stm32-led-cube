@@ -1,5 +1,5 @@
 BIN_DIR = bin
-TINYGO_FLAGS = -opt 2 -panic print -gc conservative -size full
+TINYGO_FLAGS = -opt s -panic print -gc conservative -size full
 TARGET = -target bluepill-clone
 ifdef OS
 	VERSION = v$(strip $(shell cmd /C date /t))_$(subst :,-,$(shell cmd /C time /t))

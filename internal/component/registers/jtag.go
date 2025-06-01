@@ -29,4 +29,5 @@ func DisableJTAG() {
 	stm32.RCC.SetAPB2ENR_AFIOEN(stm32.RCC_APB2ENR_AFIOEN) // Enable clock for AFIO peripheral
 	time.Sleep(1 * time.Microsecond)
 	stm32.AFIO.SetMAPR_SWJ_CFG(disableJTAG_SW) // JTAG-DP and SW-DP disabled
+	time.Sleep(1 * time.Microsecond)
 }

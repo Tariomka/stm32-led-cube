@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"device/stm32"
 	"machine"
 
 	"github.com/Tariomka/led-common-lib/pkg/led"
@@ -43,10 +42,15 @@ type YellowBoard struct {
 	ButtonCycle     component.InputPin // Main board KEY6, PA13
 	ButtonOnOff     component.InputPin // Main board KEY7, PA11
 
+	Switch1 component.InputPin // Main board switch 1, PA1
+	Switch2 component.InputPin // Main board switch 2, PC3
+
 	// InfraRed // ?, PC6
 }
 
 func NewYellowBoard(tracker *StateTracker) Board {
+	registers.PrintAndResetCrashLog()
+	registers.PrintPVDLog()
 	registers.DisableJTAG() // Required for PA14 to work correctly
 
 	board := YellowBoard{
@@ -71,9 +75,11 @@ func NewYellowBoard(tracker *StateTracker) Board {
 		ButtonNext:      component.NewInputPin(machine.PC1),
 		ButtonSpeedMore: component.NewInputPin(machine.PC2),
 		ButtonSpeedLess: component.NewInputPin(machine.PB3),
-		ButtonRunPause:  component.NewInputPin(machine.PA14),
+		ButtonRunPause:  component.NewInputPullDownPin(machine.PA14),
 		ButtonCycle:     component.NewInputPin(machine.PA13),
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
+		Switch1:         component.NewInputPin(machine.PA1),
+		Switch2:         component.NewInputPin(machine.PC3),
 	}
 	board.UartOnboard = component.NewUart(machine.UART1, board.LedsOnboard.BlinkError)
 	board.setInterrupts(tracker)
@@ -120,34 +126,32 @@ func (this *YellowBoard) EnableLeds() {
 func (this *YellowBoard) setInterrupts(tracker *StateTracker) {
 	this.ButtonPrevious.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		println("Key 1 pressed")
-		tracker.PrevLightShow()
+		// tracker.PrevLightShow()
 	})
 	this.ButtonNext.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		println("Key 2 pressed")
-		tracker.NextLightShow()
+		// tracker.NextLightShow()
 	})
 	this.ButtonSpeedMore.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 3 ressed")
-		tracker.IncreaseSpeed()
+		println("Key 3 pressed")
+		// tracker.IncreaseSpeed()
 	})
 	this.ButtonSpeedLess.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		println("Key 4 pressed")
-		tracker.DecreadeSpeed()
+		// tracker.DecreadeSpeed()
 	})
 	this.ButtonRunPause.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		println("Key 5 pressed")
-		tracker.CycleMode()
+		// tracker.CycleMode()
 	})
 	this.ButtonCycle.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		println("Key 6 pressed")
-		tracker.CycleMode()
+		// tracker.CycleMode()
 	})
 	this.ButtonOnOff.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		// TODO: add sleep mode logic
 		println("Key 7 pressed")
 
-		println("RCC APB2ENR AFIO enable: ", stm32.RCC.GetAPB2ENR_AFIOEN()) // Delay after an RCC peripheral clock enabling
-		println("AFIO MAPR SWJ CFG value: ", stm32.AFIO.GetMAPR_SWJ_CFG())  // JTAG-DP and SW-DP disabled
 		println("Button 5 value: ", this.ButtonRunPause.Get())
 		tracker.SwitchRunPause()
 	})

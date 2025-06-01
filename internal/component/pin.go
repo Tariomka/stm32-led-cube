@@ -11,6 +11,13 @@ func NewInputPin(pin machine.Pin) InputPin {
 	return input
 }
 
+// TODO: remove later
+func NewInputPullDownPin(pin machine.Pin) InputPin {
+	input := InputPin{Pin: pin}
+	input.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+	return input
+}
+
 // Pin that's setup for Output mode
 type OutputPin struct{ machine.Pin }
 
