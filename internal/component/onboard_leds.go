@@ -48,27 +48,27 @@ func (this OnboardLeds) BlinkError() {
 func (this OnboardLeds) Blink(bType BlinkType, duration time.Duration, delay bool) {
 	switch bType {
 	case BlinkRed:
-		this.LedRed.Pin.Low()
+		this.LedRed.Low()
 	case BlinkGreen:
-		this.LedGreen.Pin.Low()
+		this.LedGreen.Low()
 	case BlinkBoth:
-		this.LedGreen.Pin.Low()
-		this.LedRed.Pin.Low()
+		this.LedGreen.Low()
+		this.LedRed.Low()
 	case BlinkStaggerRed:
-		this.LedRed.Pin.Low()
+		this.LedRed.Low()
 		time.Sleep(duration)
-		this.LedRed.Pin.High()
-		this.LedGreen.Pin.Low()
+		this.LedRed.High()
+		this.LedGreen.Low()
 	case BlinkStaggerGreen:
-		this.LedGreen.Pin.Low()
+		this.LedGreen.Low()
 		time.Sleep(duration)
-		this.LedGreen.Pin.High()
-		this.LedRed.Pin.Low()
+		this.LedGreen.High()
+		this.LedRed.Low()
 	}
 	time.Sleep(duration)
 
-	this.LedGreen.Pin.High()
-	this.LedRed.Pin.High()
+	this.LedGreen.High()
+	this.LedRed.High()
 	if delay {
 		time.Sleep(duration)
 	}

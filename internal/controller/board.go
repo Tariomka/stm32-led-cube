@@ -2,8 +2,10 @@ package controller
 
 import (
 	"machine"
+	"time"
 
 	"github.com/Tariomka/led-common-lib/pkg/led"
+	"github.com/Tariomka/stm32-led-cube/internal/common/global"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/component/registers"
 )
@@ -50,8 +52,7 @@ type YellowBoard struct {
 
 func NewYellowBoard(tracker *StateTracker) Board {
 	registers.PrintAndResetCrashLog()
-	registers.PrintPVDLog()
-	registers.DisableJTAG() // Required for PA14 to work correctly
+	registers.UpdateRegisters()
 
 	board := YellowBoard{
 		Demultiplexer: component.NewDemultiplexer(
@@ -69,21 +70,38 @@ func NewYellowBoard(tracker *StateTracker) Board {
 			machine.PC4,
 			machine.PC5,
 		),
+		UartOnboard: component.NewUart(machine.UART1),
 		// I2C: NewOnBoardI2C(),
 		LedsOnboard:     component.NewOnboardLeds(machine.PB9, machine.PB8),
 		ButtonPrevious:  component.NewInputPin(machine.PC0),
 		ButtonNext:      component.NewInputPin(machine.PC1),
 		ButtonSpeedMore: component.NewInputPin(machine.PC2),
 		ButtonSpeedLess: component.NewInputPin(machine.PB3),
-		ButtonRunPause:  component.NewInputPullDownPin(machine.PA14),
+		ButtonRunPause:  component.NewInputPin(machine.PA14),
 		ButtonCycle:     component.NewInputPin(machine.PA13),
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
 		Switch1:         component.NewInputPin(machine.PA1),
 		Switch2:         component.NewInputPin(machine.PC3),
 	}
-	board.UartOnboard = component.NewUart(machine.UART1, board.LedsOnboard.BlinkError)
 	board.setInterrupts(tracker)
 
+	global.HandleFatal = func() {
+		board.LedsOnboard.LedGreen.High()
+		board.LedsOnboard.LedRed.Low()
+		board.Demultiplexer.Disable()
+		for {
+			time.Sleep(1 * time.Second)
+		}
+	}
+	global.HandleError = board.LedsOnboard.BlinkError
+	global.HandleStartup = func() {
+		println("Led Cube is starting up")
+		board.LedsOnboard.BlinkStartup()
+	}
+
+	// registers.PrintButtonStates()
+	// registers.PrintRegisterValues()
+	// registers.PrintInputOutputRegisterValues()
 	return &board
 }
 
@@ -125,34 +143,33 @@ func (this *YellowBoard) EnableLeds() {
 
 func (this *YellowBoard) setInterrupts(tracker *StateTracker) {
 	this.ButtonPrevious.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 1 pressed")
-		// tracker.PrevLightShow()
+		println("Key 1 pressed") // TODO: Remove after debugging
+		registers.PrintButtonStates()
+		tracker.PrevLightShow()
 	})
 	this.ButtonNext.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 2 pressed")
-		// tracker.NextLightShow()
+		println("Key 2 pressed") // TODO: Remove after debugging
+		tracker.NextLightShow()
 	})
 	this.ButtonSpeedMore.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 3 pressed")
-		// tracker.IncreaseSpeed()
+		println("Key 3 pressed") // TODO: Remove after debugging
+		tracker.IncreaseSpeed()
 	})
 	this.ButtonSpeedLess.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 4 pressed")
-		// tracker.DecreadeSpeed()
+		println("Key 4 pressed") // TODO: Remove after debugging
+		tracker.DecreadeSpeed()
 	})
 	this.ButtonRunPause.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 5 pressed")
-		// tracker.CycleMode()
+		println("Key 5 pressed") // TODO: Remove after debugging
+		tracker.SwitchRunPause()
 	})
 	this.ButtonCycle.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		println("Key 6 pressed")
-		// tracker.CycleMode()
+		println("Key 6 pressed") // TODO: Remove after debugging
+		tracker.CycleMode()
 	})
 	this.ButtonOnOff.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 7 pressed") // TODO: Remove after debugging
 		// TODO: add sleep mode logic
-		println("Key 7 pressed")
-
-		println("Button 5 value: ", this.ButtonRunPause.Get())
-		tracker.SwitchRunPause()
+		tracker.SwitchRunPause() // TODO: remove after sleep logic is implemented
 	})
 }

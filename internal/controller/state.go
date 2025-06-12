@@ -4,102 +4,116 @@ import "github.com/Tariomka/led-common-lib/pkg/led"
 
 type Mode uint8
 
+// TODO: double check states if everything works correctly
 const (
-	OnboardMode Mode = iota + 1
+	StandbyMode Mode = iota
+	OnboardMode
 	SerialMode
 	DebugMode
-	StandbyMode
+	PauseMode
 )
 
 type StateTracker struct {
-	CurrentMode          Mode
-	colorDepth           uint8
+	lightShows     []led.LightShow
+	lightShowIndex uint32
+
+	CurrentMode  Mode
+	previousMode Mode
+
 	frameRepetitionCount uint32
-	lightShowIndex       uint32
-	lightShows           []led.LightShow
-	pause                bool
-	previousMode         Mode
 }
 
 func NewStateTracker(ls []led.LightShow) *StateTracker {
 	return &StateTracker{
-		CurrentMode:          OnboardMode,
-		colorDepth:           1,
-		frameRepetitionCount: 1,
-		lightShowIndex:       0,
 		lightShows:           ls,
-		pause:                false,
+		CurrentMode:          OnboardMode,
 		previousMode:         StandbyMode,
+		frameRepetitionCount: 1,
 	}
 }
 
-func (st *StateTracker) CurrentLightShow() led.LightShow {
-	if len(st.lightShows) < 1 || st.lightShowIndex >= uint32(len(st.lightShows)) {
+func (this *StateTracker) CurrentLightShow() led.LightShow {
+	if len(this.lightShows) < 1 || this.lightShowIndex >= uint32(len(this.lightShows)) {
 		return nil
 	}
 
-	return st.lightShows[st.lightShowIndex]
+	return this.lightShows[this.lightShowIndex]
 }
 
-func (st *StateTracker) ExecuteFrame(frameCallback func()) {
+func (this *StateTracker) ExecuteFrame(frameCallback func()) {
 	// TODO: implement colorDepth as well.
 	// Most likely this function will need to be refactored to func(Board, LayoutWorker) signature
 	// For the time being colorDepth is implicit - frames switch so fast, it works as colorDepth
 
 	// Put this to frame loop to preserve frame loop possition and not need to wait for frame to finish?
-	for st.pause {
+	for this.CurrentMode == PauseMode {
 		frameCallback()
 	}
 
-	for i := uint32(0); i < st.frameRepetitionCount; i++ {
+	for range this.frameRepetitionCount {
 		frameCallback()
 	}
 }
 
-func (st *StateTracker) CycleMode() {
-	switch st.CurrentMode {
+func (this *StateTracker) CycleMode() {
+	switch this.CurrentMode {
 	case OnboardMode:
-		st.previousMode = st.CurrentMode
-		st.CurrentMode = SerialMode
+		this.previousMode = this.CurrentMode
+		this.CurrentMode = SerialMode
 	case SerialMode:
-		st.previousMode = st.CurrentMode
-		st.CurrentMode = DebugMode
+		this.previousMode = this.CurrentMode
+		this.CurrentMode = DebugMode
 	case DebugMode:
-		st.previousMode = st.CurrentMode
-		st.CurrentMode = OnboardMode
+		this.previousMode = this.CurrentMode
+		this.CurrentMode = OnboardMode
+	case PauseMode:
+		this.CurrentMode = this.previousMode
 	}
 }
 
-func (st *StateTracker) NextLightShow() {
-	st.lightShowIndex++
-	if st.lightShowIndex >= uint32(len(st.lightShows)) || st.lightShowIndex == ^uint32(0) {
-		st.lightShowIndex = 0
+func (this *StateTracker) NextLightShow() {
+	this.lightShowIndex++
+	if this.lightShowIndex >= uint32(len(this.lightShows)) || this.lightShowIndex == ^uint32(0) {
+		this.lightShowIndex = 0
 	}
 }
 
-func (st *StateTracker) PrevLightShow() {
-	if st.lightShowIndex == 0 {
-		st.lightShowIndex = uint32(len(st.lightShows))
+func (this *StateTracker) PrevLightShow() {
+	if this.lightShowIndex == 0 {
+		this.lightShowIndex = uint32(len(this.lightShows))
 	}
-	st.lightShowIndex--
+	this.lightShowIndex--
 }
 
-func (st *StateTracker) IncreaseSpeed() {
-	if st.frameRepetitionCount > 2 {
-		st.frameRepetitionCount -= 2
-	} else {
-		st.frameRepetitionCount = 1
+func (this *StateTracker) IncreaseSpeed() {
+	if this.frameRepetitionCount > 2 {
+		this.frameRepetitionCount -= 2
+		return
 	}
+
+	this.frameRepetitionCount = 1
 }
 
-func (st *StateTracker) DecreadeSpeed() {
-	if st.frameRepetitionCount < ^uint32(2) {
-		st.frameRepetitionCount += 2
-	} else {
-		st.frameRepetitionCount = ^uint32(0)
+func (this *StateTracker) DecreadeSpeed() {
+	if this.frameRepetitionCount < ^uint32(2) {
+		this.frameRepetitionCount += 2
+		return
 	}
+
+	this.frameRepetitionCount = ^uint32(0)
 }
 
-func (st *StateTracker) SwitchRunPause() {
-	st.pause = !st.pause
+func (this *StateTracker) SwitchRunPause() {
+	if this.CurrentMode == PauseMode {
+		this.CurrentMode = this.previousMode
+		return
+	}
+
+	this.previousMode = this.CurrentMode
+	this.CurrentMode = PauseMode
+}
+
+// TODO: implement
+func (this *StateTracker) TurnOnOff() {
+
 }

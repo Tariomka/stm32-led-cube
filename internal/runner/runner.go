@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Tariomka/led-common-lib/pkg/led"
+	"github.com/Tariomka/stm32-led-cube/internal/common/global"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/controller"
 )
@@ -36,7 +37,7 @@ func NewRunner(config RunnerConfig) Runner {
 }
 
 func (this *CubeRunner) Start() {
-	this.Board.GetIndicator().BlinkStartup()
+	global.HandleStartup()
 
 	for {
 		switch this.Tracker.CurrentMode {
@@ -56,6 +57,7 @@ func (this *CubeRunner) runOnboardLoop() {
 		frameCallback(this.LayoutWorker)
 		this.Tracker.ExecuteFrame(func() {
 			this.Board.LightLeds(this.LayoutWorker)
+			this.Board.DisableLeds()
 		})
 	}
 }

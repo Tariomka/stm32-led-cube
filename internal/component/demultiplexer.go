@@ -3,7 +3,7 @@ package component
 import (
 	"machine"
 
-	"github.com/Tariomka/stm32-led-cube/internal/common"
+	"github.com/Tariomka/stm32-led-cube/internal/common/utils"
 )
 
 // Line decoder demultiplexer for providing power to each layer of led cube (Anode control).
@@ -30,7 +30,7 @@ func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
 }
 
 func (demux Demultiplexer) EnableLayer(index uint8) error {
-	if err := common.ErrIfOutOfBounds(index); err != nil {
+	if err := utils.ErrIfOutOfBounds(index); err != nil {
 		return err
 	}
 
