@@ -12,6 +12,21 @@ This is one part of a bigger 3 part project I'm cooking:
 
 I'm also using a [common library](https://github.com/Tariomka/led-common-lib) for all 3 projects to not have duplicate and/or out of sync logic components.
 
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#stm32-led-cube---3d-rgb-led-cube-project">About The Project</a></li>
+    <li><a href="#project-structure">Project Structure</a></li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#requirements">Requirements</a></li>
+        <li><a href="#recommendations">Recommendations</a></li>
+      </ul>
+    </li>
+  </ol>
+</details>
+
 # Project Structure
 
 Here's a basic brakedown of the structure of directories:
@@ -27,14 +42,54 @@ Here's a basic brakedown of the structure of directories:
 └── internal # Core project functionality, considered as private library code
 ```
 
-
-# Requirements
-
-1. Go v1.23.4 or above: [download link](https://go.dev/doc/install).
-2. TinyGo v0.35 or above: [installation instructions](https://tinygo.org/getting-started/install/).
-3. Any code editor, ex. VS Code.
-4. GNU Make.
-5. STM32CubeProgrammer for flashing GD32 chip: [download link](https://www.st.com/en/development-tools/stm32cubeprog.html).
-
 # Getting started
 
+## Requirements
+
+Bare minimum
+1. Go v1.24.4 or above: [download link](https://go.dev/doc/install).
+2. TinyGo v0.38 or above: [installation instructions](https://tinygo.org/getting-started/install/).
+3. Any way to flash binaries to the microcontroller. I use STM32CubeProgrammer (listed in [Recommendations](#recommendations) section), but you can use other alternatives, example JTAG Programmer and `tinygo flash` command.
+
+## Recommendations
+
+1. Any text/code editor, example VS Code: [download link](https://code.visualstudio.com/download).
+2. GNU Make.
+3. STM32CubeProgrammer for flashing GD32 chip: [download link](https://www.st.com/en/development-tools/stm32cubeprog.html).
+
+## Disclamer and Premaration
+
+## Quickstart
+
+1. Build project binary with Make:
+    ```sh
+    make
+    ```
+    or without Make:
+    ```sh
+    tinygo build -target bluepill-clone ./cmd/8x8_rgb_cube/main.go
+    ```
+2. Flash newly created binary:
+    <!-- TODO: Add screenshots -->
+    1. Short the `BOOT0` pins on the GD32 yellow board
+    2. Plug in GD32 to your computer via UART programmer:
+        | GD32 pins | UART Programmer pins |
+        | :-------: | :------------------: |
+        | GND       | GND                  |
+        | TXD       | TXD                  |
+        | RXD       | RXD                  |
+        | +5V       | 5V                   |
+        |           |    Short VCC - 3V3   |
+    3. Launch STM32CubeProgrammer
+    4. In the dropdown select `UART`
+    5. Select Port that corresponds to the connected GD32, typically its `ttyUSB0` on Linux
+    6. Click `Connect`
+    > NOTE: if you get an error like this:
+    >
+    > > Error: Activating device: KO. Please, verify the boot mode configuration and check the serial port configuration. Reset your device then try again...
+    >
+    > double check steps 2.I and 2.V and if everything looks correct, press the `Reset` button on the Yellow Board and step 6 again.
+    7. Navigate to `Erasing & programming` section
+    8. Click `Browse` and find the binary that was compiled in step 1
+    > If the project was compiled using Make, the binary will be located in `./bin/main_8x8_rgb_{date_time}.hex`, otherwise it should be localed in the root directory named `main.elf`
+    9. Click `Start Programming` and wait until upload finishes.
