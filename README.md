@@ -57,7 +57,9 @@ Bare minimum
 2. GNU Make.
 3. STM32CubeProgrammer for flashing GD32 chip: [download link](https://www.st.com/en/development-tools/stm32cubeprog.html).
 
-## Disclamer and Premaration
+## Disclamer and Preparation
+
+Unfinished. WORK IN PROGRESS! Do not use this.
 
 ## Quickstart
 
