@@ -170,6 +170,6 @@ func (this *YellowBoard) setInterrupts(tracker *StateTracker) {
 	this.ButtonOnOff.SetInterrupt(machine.PinRising, func(p machine.Pin) {
 		println("Key 7 pressed") // TODO: Remove after debugging
 		// TODO: add sleep mode logic
-		tracker.SwitchRunPause() // TODO: remove after sleep logic is implemented
+		tracker.TurnOnOff() // TODO: remove after sleep logic is implemented
 	})
 }

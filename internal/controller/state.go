@@ -115,5 +115,5 @@ func (this *StateTracker) SwitchRunPause() {
 
 // TODO: implement
 func (this *StateTracker) TurnOnOff() {
-
+	this.SwitchRunPause()
 }
