@@ -13,9 +13,6 @@ type Runner interface {
 	Start()
 }
 
-type RunnerLoop interface {
-}
-
 type CubeRunner struct {
 	Board        controller.Board
 	LayoutWorker led.LayoutWorker

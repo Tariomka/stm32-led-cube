@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Tariomka/led-common-lib/pkg/led"
+	"github.com/Tariomka/led-common-lib/pkg/network"
 	"github.com/Tariomka/stm32-led-cube/internal/common/global"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/component/registers"
@@ -25,7 +26,7 @@ type YellowBoard struct {
 	Demultiplexer component.Demultiplexer // (74HC154) Provides power to each layer of led cube
 	LedDriver     *component.LedDriver    // (MBI5024GP/GF) Shift register led driver
 
-	UartOnboard *component.UART // Onboard UART serial connection, RX - PA10, TX - PA9
+	UartProcessor *network.UartProcessor // Onboard UART serial connection processor, RX - PA10, TX - PA9
 	// UartMainBoard *machine.UART // Main board UART serial connection (3.5 jacks), RX - PA3, TX - PA2
 	// I2C *machine.I2C // (24C02) , SDA - PB7, SCL - PB6
 
@@ -70,7 +71,7 @@ func NewYellowBoard(tracker *StateTracker) Board {
 			machine.PC4,
 			machine.PC5,
 		),
-		UartOnboard: component.NewUart(machine.UART1),
+		UartProcessor: network.NewUartProcessor(component.NewConfiguredUart(machine.UART1)),
 		// I2C: NewOnBoardI2C(),
 		LedsOnboard:     component.NewOnboardLeds(machine.PB9, machine.PB8),
 		ButtonPrevious:  component.NewInputPin(machine.PC0),
@@ -98,10 +99,10 @@ func NewYellowBoard(tracker *StateTracker) Board {
 		println("Led Cube is starting up")
 		board.LedsOnboard.BlinkStartup()
 	}
+	global.HandlePrint = board.Send
 
+	registers.PrintCheck()
 	// registers.PrintButtonStates()
-	// registers.PrintRegisterValues()
-	// registers.PrintInputOutputRegisterValues()
 	return &board
 }
 
@@ -118,11 +119,22 @@ func (this *YellowBoard) LightLeds(s led.Slicer) {
 }
 
 func (this *YellowBoard) Send(message string) {
-	this.UartOnboard.Send(message)
+	this.UartProcessor.WriteMessage(message)
 }
 
 func (this *YellowBoard) Receive() []byte {
-	return this.UartOnboard.Receive()
+	dtype, content, err := this.UartProcessor.Read()
+	if err != nil {
+		global.HandleError()
+		return nil
+	}
+
+	switch dtype {
+	case network.UartPing:
+		this.UartProcessor.SendPong()
+	}
+
+	return content
 }
 
 func (this *YellowBoard) GetIndicator() component.Indicator {

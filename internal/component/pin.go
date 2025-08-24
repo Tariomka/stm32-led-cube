@@ -32,6 +32,15 @@ func NewSpiOutput(spi *machine.SPI, sck, sdo machine.Pin) *machine.SPI {
 	return spi
 }
 
+type UART struct{ *machine.UART }
+
+func NewConfiguredUart(uart *machine.UART) UART {
+	device := UART{UART: uart}
+	device.Configure(machine.UARTConfig{})
+
+	return device
+}
+
 // func NewOnBoardI2C() *machine.I2C {
 // 	i2c := machine.I2C0
 // 	i2c.Configure(machine.I2CConfig{
