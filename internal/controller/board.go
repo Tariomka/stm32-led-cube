@@ -53,6 +53,8 @@ type YellowBoard struct {
 
 func NewYellowBoard(tracker *StateTracker) Board {
 	registers.PrintAndResetCrashLog()
+	// Doesn't work, PA14 first bit is always 1, making the value 0b0101 instead of 0b0100
+	// i.e. it becomes output instead of input pin
 	registers.UpdateRegisters()
 
 	board := YellowBoard{
