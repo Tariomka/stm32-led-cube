@@ -58,6 +58,7 @@ func (this *StateTracker) ExecuteFrame(frameCallback func()) {
 func (this *StateTracker) CycleMode() {
 	switch this.CurrentMode {
 	case OnboardMode:
+		// TODO: add config option to not use serial mode
 		this.previousMode = this.CurrentMode
 		this.CurrentMode = SerialMode
 	case SerialMode:
