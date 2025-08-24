@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "golang.go",
+        "tinygo.vscode-tinygo",
+        "ms-vscode.makefile-tools",
+    ]
+}

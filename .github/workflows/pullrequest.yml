@@ -14,17 +14,17 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.23'
+        go-version: '1.24'
 
     - name: Set up Tinygo
-      uses: fluentci-io/setup-fluentci@v5
+      uses: acifani/setup-tinygo@v2
       with:
-        wasm: true
-        plugin: tinygo
-        args: |
-          setup
+        tinygo-version: '0.38.0'
 
     - name: Checks
       run: |
         go version
         tinygo version
+
+    - name: Build
+      run: tinygo build -o build.hex -target bluepill-clone -opt s -panic print -gc conservative -size full ./cmd/8x8_rgb_cube/main.go

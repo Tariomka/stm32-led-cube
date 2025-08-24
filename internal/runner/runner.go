@@ -1,67 +1,77 @@
 package runner
 
-import "github.com/Tariomka/stm32-led-cube/internal/controller"
+import (
+	"time"
+
+	"github.com/Tariomka/led-common-lib/pkg/led"
+	"github.com/Tariomka/stm32-led-cube/internal/common/global"
+	"github.com/Tariomka/stm32-led-cube/internal/component"
+	"github.com/Tariomka/stm32-led-cube/internal/controller"
+)
 
 type Runner interface {
 	Start()
 }
 
-type RunnerLoop interface {
-}
-
 type CubeRunner struct {
 	Board        controller.Board
-	LayoutWorker controller.LayoutWorker
+	LayoutWorker led.LayoutWorker
 	Tracker      *controller.StateTracker
 }
 
-func NewRunner(config RunnerConfic) Runner {
+func NewRunner(config RunnerConfig) Runner {
 	// TODO: implement other cube sizes/types
 	if config.BaseSize != Size8 || config.Height != Size8 || config.LedType != RGB {
 		return nil
 	}
 
 	tracker := controller.NewStateTracker(config.LightShows)
-
 	return &CubeRunner{
-		LayoutWorker: &controller.LedLayout{},
+		LayoutWorker: &led.LedLayout{},
 		Board:        controller.NewYellowBoard(tracker),
 		Tracker:      tracker,
 	}
 }
 
-func (cr *CubeRunner) Start() {
-	cr.Board.BlinkStartup()
+func (this *CubeRunner) Start() {
+	global.HandleStartup()
 
 	for {
-		switch cr.Tracker.CurrentMode {
+		switch this.Tracker.CurrentMode {
 		case controller.OnboardMode:
-			cr.runOnboardLoop()
+			this.runOnboardLoop()
 		case controller.DebugMode:
-			cr.runDebugLoop()
+			this.runDebugLoop()
 		case controller.SerialMode:
-			cr.runSerialLoop()
+			this.runSerialLoop()
 		}
 	}
 }
 
-func (cr *CubeRunner) runOnboardLoop() {
-	for _, frameCallback := range cr.Tracker.CurrentLightShow() {
-		cr.LayoutWorker.ResetBlock()
-		frameCallback(cr.LayoutWorker)
-		cr.Tracker.ExecuteFrame(func() {
-			cr.Board.LightLeds(cr.LayoutWorker)
+func (this *CubeRunner) runOnboardLoop() {
+	for _, frameCallback := range this.Tracker.CurrentLightShow() {
+		this.LayoutWorker.ResetBlock()
+		frameCallback(this.LayoutWorker)
+		this.Tracker.ExecuteFrame(func() {
+			this.Board.LightLeds(this.LayoutWorker)
+			this.Board.DisableLeds()
 		})
 	}
 }
 
-func (cr *CubeRunner) runDebugLoop() {
+func (this *CubeRunner) runDebugLoop() {
 	// Placeholder
-	cr.Board.BlinkDebug()
-	cr.Board.EnableLeds()
+	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
+	this.Board.EnableLeds()
 }
 
-func (cr *CubeRunner) runSerialLoop() {
+func (this *CubeRunner) runSerialLoop() {
 	// Placeholder
-	cr.Board.DisableLeds()
+	this.Board.DisableLeds()
+	data := this.Board.Receive()
+	if len(data) > 0 {
+		this.Board.Send("Received:" + string(data))
+	}
+	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
+	time.Sleep(2 * time.Second)
 }

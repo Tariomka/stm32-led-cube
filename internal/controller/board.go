@@ -4,14 +4,19 @@ import (
 	"machine"
 	"time"
 
+	"github.com/Tariomka/led-common-lib/pkg/led"
+	"github.com/Tariomka/led-common-lib/pkg/network"
+	"github.com/Tariomka/stm32-led-cube/internal/common/global"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
+	"github.com/Tariomka/stm32-led-cube/internal/component/registers"
 )
 
 type Board interface {
-	BlinkStartup() // Startup indicator
-	BlinkDebug()
-	BlinkError()        // Error indicator
-	LightLeds(s Slicer) // Lights up a single frame
+	LightLeds(s led.Slicer)            // Lights up a single frame
+	Send(message string)               // Sends message over UART
+	Receive() []byte                   // Receives data from UART
+	GetIndicator() component.Indicator // Gets onboard led indicator
+
 	DisableLeds()
 	EnableLeds()
 }
@@ -21,12 +26,16 @@ type YellowBoard struct {
 	Demultiplexer component.Demultiplexer // (74HC154) Provides power to each layer of led cube
 	LedDriver     *component.LedDriver    // (MBI5024GP/GF) Shift register led driver
 
-	UartOnboard *machine.UART // Onboard UART serial connection, RX - PA10, TX - PA9
-	// UartMainBoard *machine.UART // Main board UART serial connection, RX - PA3, TX - PA2
+	UartProcessor *network.UartProcessor // Onboard UART serial connection processor, RX - PA10, TX - PA9
+	// UartMainBoard *machine.UART // Main board UART serial connection (3.5 jacks), RX - PA3, TX - PA2
 	// I2C *machine.I2C // (24C02) , SDA - PB7, SCL - PB6
 
-	LedGreen component.OutputPin // Onboard Green Led - D1, pin PB9. Cathode control
-	LedRed   component.OutputPin // Onboard Red Led - D2, pin PB8. Cathode control
+	// Onboard leds:
+	//
+	// Green led -> D1, pin PB9
+	//
+	// Red led -> D2, pin PB8
+	LedsOnboard component.OnboardLeds
 
 	ButtonPrevious  component.InputPin // Main board KEY1, PC0
 	ButtonNext      component.InputPin // Main board KEY2, PC1
@@ -36,10 +45,16 @@ type YellowBoard struct {
 	ButtonCycle     component.InputPin // Main board KEY6, PA13
 	ButtonOnOff     component.InputPin // Main board KEY7, PA11
 
+	Switch1 component.InputPin // Main board switch 1, PA1
+	Switch2 component.InputPin // Main board switch 2, PC3
+
 	// InfraRed // ?, PC6
 }
 
 func NewYellowBoard(tracker *StateTracker) Board {
+	registers.PrintAndResetCrashLog()
+	registers.UpdateRegisters()
+
 	board := YellowBoard{
 		Demultiplexer: component.NewDemultiplexer(
 			machine.PB0,
@@ -56,13 +71,9 @@ func NewYellowBoard(tracker *StateTracker) Board {
 			machine.PC4,
 			machine.PC5,
 		),
-
-		UartOnboard: machine.UART1,
+		UartProcessor: network.NewUartProcessor(component.NewConfiguredUart(machine.UART1)),
 		// I2C: NewOnBoardI2C(),
-
-		LedGreen: component.NewOutputPin(machine.PB9),
-		LedRed:   component.NewOutputPin(machine.PB8),
-
+		LedsOnboard:     component.NewOnboardLeds(machine.PB9, machine.PB8),
 		ButtonPrevious:  component.NewInputPin(machine.PC0),
 		ButtonNext:      component.NewInputPin(machine.PC1),
 		ButtonSpeedMore: component.NewInputPin(machine.PC2),
@@ -70,85 +81,107 @@ func NewYellowBoard(tracker *StateTracker) Board {
 		ButtonRunPause:  component.NewInputPin(machine.PA14),
 		ButtonCycle:     component.NewInputPin(machine.PA13),
 		ButtonOnOff:     component.NewInputPin(machine.PA11),
+		Switch1:         component.NewInputPin(machine.PA1),
+		Switch2:         component.NewInputPin(machine.PC3),
 	}
+	board.setInterrupts(tracker)
 
-	board.UartOnboard.Configure(machine.UARTConfig{BaudRate: 38400})
+	global.HandleFatal = func() {
+		board.LedsOnboard.LedGreen.High()
+		board.LedsOnboard.LedRed.Low()
+		board.Demultiplexer.Disable()
+		for {
+			time.Sleep(1 * time.Second)
+		}
+	}
+	global.HandleError = board.LedsOnboard.BlinkError
+	global.HandleStartup = func() {
+		println("Led Cube is starting up")
+		board.LedsOnboard.BlinkStartup()
+	}
+	global.HandlePrint = board.Send
 
-	board.ButtonPrevious.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.PrevLightShow()
-	})
-	board.ButtonNext.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.NextLightShow()
-	})
-	board.ButtonSpeedMore.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.IncreaseSpeed()
-	})
-	board.ButtonSpeedLess.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.DecreadeSpeed()
-	})
-	board.ButtonRunPause.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		// TODO: Investigate why doesn't this(PA14 pin/Key 5) button work
-		// As far as I see, it's the correct button but the Pullup configuration isn't being set correctly.
-		tracker.SwitchRunPause()
-	})
-	board.ButtonCycle.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		tracker.CycleMode()
-	})
-	board.ButtonOnOff.Pin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
-		// TODO: add sleep mode logic
-		tracker.SwitchRunPause()
-	})
-
+	registers.PrintCheck()
+	// registers.PrintButtonStates()
 	return &board
 }
 
-func (yb *YellowBoard) LightLeds(s Slicer) {
+func (this *YellowBoard) LightLeds(s led.Slicer) {
 	for index, slice := range s.IterateSlices() {
-		if err := yb.LedDriver.LightLayer(slice); err != nil {
-			yb.BlinkError()
+		if err := this.LedDriver.LightLayer(slice); err != nil {
+			this.LedsOnboard.BlinkError()
 		}
 
-		if err := yb.Demultiplexer.EnableLayer(index); err != nil {
-			yb.BlinkError()
+		if err := this.Demultiplexer.EnableLayer(index); err != nil {
+			this.LedsOnboard.BlinkError()
 		}
 	}
 }
 
-func (yb *YellowBoard) BlinkStartup() {
-	for i := 0; i < 3; i++ {
-		yb.LedRed.Pin.Low()
-		yb.LedGreen.Pin.Low()
-		time.Sleep(200 * time.Millisecond)
-
-		yb.LedRed.Pin.High()
-		yb.LedGreen.Pin.High()
-		time.Sleep(100 * time.Millisecond)
-	}
+func (this *YellowBoard) Send(message string) {
+	this.UartProcessor.WriteMessage(message)
 }
 
-func (yb *YellowBoard) BlinkDebug() {
-	yb.LedGreen.Pin.Low()
-	time.Sleep(200 * time.Millisecond)
-	yb.LedGreen.Pin.High()
-	time.Sleep(100 * time.Millisecond)
+func (this *YellowBoard) Receive() []byte {
+	dtype, content, err := this.UartProcessor.Read()
+	if err != nil {
+		global.HandleError()
+		return nil
+	}
+
+	switch dtype {
+	case network.UartPing:
+		this.UartProcessor.SendPong()
+	}
+
+	return content
 }
 
-func (yb *YellowBoard) BlinkError() {
-	for i := 0; i < 5; i++ {
-		yb.LedRed.Pin.Low()
-		time.Sleep(200 * time.Millisecond)
-
-		yb.LedRed.Pin.High()
-		time.Sleep(200 * time.Millisecond)
-	}
+func (this *YellowBoard) GetIndicator() component.Indicator {
+	return this.LedsOnboard
 }
 
 // ===============================================
-// To Be Deleted
-func (yb *YellowBoard) DisableLeds() {
-	yb.Demultiplexer.Disable()
+// To Be Deleted ?
+func (this *YellowBoard) DisableLeds() {
+	this.Demultiplexer.Disable()
 }
 
-func (yb *YellowBoard) EnableLeds() {
-	yb.Demultiplexer.Enable()
+func (this *YellowBoard) EnableLeds() {
+	this.Demultiplexer.Enable()
+}
+
+// ===============================================
+
+func (this *YellowBoard) setInterrupts(tracker *StateTracker) {
+	this.ButtonPrevious.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 1 pressed") // TODO: Remove after debugging
+		registers.PrintButtonStates()
+		tracker.PrevLightShow()
+	})
+	this.ButtonNext.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 2 pressed") // TODO: Remove after debugging
+		tracker.NextLightShow()
+	})
+	this.ButtonSpeedMore.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 3 pressed") // TODO: Remove after debugging
+		tracker.IncreaseSpeed()
+	})
+	this.ButtonSpeedLess.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 4 pressed") // TODO: Remove after debugging
+		tracker.DecreadeSpeed()
+	})
+	this.ButtonRunPause.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 5 pressed") // TODO: Remove after debugging
+		tracker.SwitchRunPause()
+	})
+	this.ButtonCycle.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 6 pressed") // TODO: Remove after debugging
+		tracker.CycleMode()
+	})
+	this.ButtonOnOff.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		println("Key 7 pressed") // TODO: Remove after debugging
+		// TODO: add sleep mode logic
+		tracker.TurnOnOff() // TODO: remove after sleep logic is implemented
+	})
 }

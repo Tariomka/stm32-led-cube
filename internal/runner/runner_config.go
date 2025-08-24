@@ -1,7 +1,7 @@
 package runner
 
 import (
-	"github.com/Tariomka/stm32-led-cube/internal/controller"
+	"github.com/Tariomka/led-common-lib/pkg/led"
 	"github.com/Tariomka/stm32-led-cube/internal/show"
 )
 
@@ -20,15 +20,15 @@ const (
 	RGB
 )
 
-type RunnerConfic struct {
+type RunnerConfig struct {
 	BaseSize   Size
 	Height     Size
 	LedType    LedType
-	LightShows []controller.LightShow
+	LightShows []led.LightShow
 }
 
-func NewConfig() RunnerConfic {
-	return RunnerConfic{
+func NewConfig() RunnerConfig {
+	return RunnerConfig{
 		BaseSize:   Size8,
 		Height:     Size8,
 		LedType:    RGB,
