@@ -17,11 +17,9 @@ jobs:
         go-version: '1.24'
 
     - name: Set up Tinygo
-      uses: fluentci-io/setup-fluentci@v5
+      uses: acifani/setup-tinygo@v2
       with:
-        plugin: tinygo
-        args: |
-          setup
+        tinygo-version: '0.38.0'
 
     - name: Checks
       run: |
