@@ -47,8 +47,8 @@ Here's a basic brakedown of the structure of directories:
 ## Requirements
 
 Bare minimum
-1. Go v1.24.4 or above: [download link](https://go.dev/doc/install).
-2. TinyGo v0.38 or above: [installation instructions](https://tinygo.org/getting-started/install/).
+1. Go v1.24.6 or above: [download link](https://go.dev/doc/install).
+2. TinyGo v0.39 or above: [installation instructions](https://tinygo.org/getting-started/install/).
 3. Any way to flash binaries to the microcontroller. I use STM32CubeProgrammer (listed in [Recommendations](#recommendations) section), but you can use other alternatives, example JTAG Programmer and `tinygo flash` command.
 
 ## Recommendations
