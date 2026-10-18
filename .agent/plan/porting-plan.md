@@ -47,10 +47,10 @@ Plus an **executable oracle**. A host-side Go test built for `GOARCH=386` on Win
 
 ### Phase 1: Tooling + extraction (no hardware)
 
-- [ ] `scripts\*.cmd`: `build`, `flash`, `monitor`, `dump` (COM4 default). Remove the `Makefile`, or keep it untouched for Linux. Your call.
-- [ ] Custom TinyGo target `targets/gd32f103re.json` + linker script (512 KB flash / 64 KB RAM). The current `bluepill` target caps at 64 KB / 20 KB.
-- [ ] `tools/fwtool` (host Go): hex ↔ bin, merge/split, diff, strings, **`extract-blob`** (finds the blob between the firmware head and tail by comparing two vendor hexes with different shows, e.g. 3D8RGB vs 8X8X32RGB).
-- [ ] Ghidra headless projects (scripts under `.agent/tools/ghidra/`) exporting decompiled C into `.agent/re/`:
+- [x] `scripts\*.cmd`: `build`, `flash`, `monitor`, `dump`, `test-oracle` (COM4 default). The `Makefile` is kept for Linux (target switched to the custom one).
+- [x] Custom TinyGo target `targets/gd32f103re.json` + linker script (512 KB flash / 64 KB RAM). The current `bluepill` target caps at 64 KB / 20 KB. Builds must run from the repo root (relative linker script path).
+- [x] `tools/fwtool` (host Go): extracts the blob from a vendor hex or a flash dump (`go run ./tools/fwtool <in.hex|in.bin> <out.bin>`). Found by magic `0x12348765` at `0x0800B000`, so no hex diffing needed.
+- [x] Ghidra headless projects (scripts under `.agent/tools/ghidra/`) exporting decompiled C into `.agent/re/`:
   - `Simulator.dll` (x86, PE)
   - app low (`0x08006000`) + app high (`0x08032100`), ARM Cortex-M Thumb LE, with peripheral labels
 - [x] ILSpy output of `3D Software - RGB.exe` and `Download Software.exe` in `.agent/external/decompiled/` (done by you).
@@ -76,22 +76,25 @@ Each spec goes to `.agent/re/spec-*.md`:
 
 ### Phase 3: Hardware foundation in Go (testable tomorrow, independent of RE)
 
-- [ ] KEY5 fix + input layer (see [key5-fix-plan.md](key5-fix-plan.md)).
-- [ ] **Display driver:** timer-ISR scan (TIM2/TIM3, not TIM4), OE blanking, LE pulse, double buffer, BAM color depth. Replaces the busy-loop `LightLeds`.
+- [x] KEY5 fix + input layer (see [key5-fix-plan.md](key5-fix-plan.md)). `component.Button` (EXTI falling edge, 30 ms debounce). Hardware check: `cmd/gpio_diag`.
+- [x] **Display driver:** `component.Scanner`, TIM2 ISR, OE blanking, LE pulse, double buffer, 2 BAM planes (400/800 µs per layer, ~104 Hz). Untested on hardware.
 - [ ] "Walk one LED" + Test-LED pattern to verify bit/LED order and color mapping.
 - [ ] 24C02 EEPROM driver (I2C1, PB6/PB7).
 - [ ] ADC on PA0 (mic), IR capture on PC6, UART2 (PA2/PA3).
 
 ### Phase 4: Engine in Go (`internal/engine/...`, host-testable)
 
-- [ ] Pure-Go packages with no `machine` imports, so they run under `go test` on the PC: `blob`, `codec`, `render`, `vm`, `player`.
-- [ ] Oracle tests against `Simulator.dll` (windows/386) for every show in the blob.
-- [ ] Size/RAM budget check for TinyGo (blob in flash, frame buffers + VM stack in RAM).
+- [x] Pure-Go packages with no `machine` imports, so they run under `go test` on the PC: `blob` (+ codec), `render`, `player` (+ VM, resolver), `frame`.
+- [x] Oracle tests against `Simulator.dll` (windows/386): all 4 groups + key actions, byte-exact (`scripts\test-oracle.cmd`).
+- [x] Size/RAM budget: firmware ≈ 95 KB flash (blob 32 KB stays in flash as an embedded string), ≈ 5.9 KB static RAM.
+- Vendor quirk reproduced on purpose: inside one element, interpolating a prop decrements the frame variable by `start` and later props see the modified value (always for Title).
 
 ### Phase 5: Integration with the current architecture
 
-- [ ] `runner`: new "Original" mode driven by `engine/player`. DIP group selects the cartoon group at boot. Keys map to player actions (configurable like `m_key1..7`).
-- [ ] Remove `internal/show` (test shows) and `internal/component/registers`.
+- [x] `runner`: `OnboardMode` driven by `engine/player`. DIP group selects the cartoon group at boot. Keys run the blob's key functions. KEY6 long press (≥ 1 s) cycles runner modes.
+- [x] Remove `internal/show` (test shows) and `internal/component/registers`. (`tmp/cmd/*` still imports `registers` and no longer builds; it's gitignored.)
+- [ ] Audio group: `Player.AudioFrame` is not fed yet (needs the ADC driver + firmware RE of the level → frame mapping).
+- [ ] `SerialMode` loop is a placeholder; hook the Pico protocol to `Board.ShowLayout`.
 - [ ] Keep `SerialMode` / Pico protocol. Decide later how the desktop app talks to the engine (e.g. upload a blob, select a show, live frames).
 - [ ] UART console compatible with the vendor's (`Commands explain`, Regedit, `reboot` into the ROM bootloader).
 - [ ] Cascade, IR remote, Audio group.

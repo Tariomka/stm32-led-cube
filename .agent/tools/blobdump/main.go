@@ -166,7 +166,13 @@ func main() {
 						var gn []string
 						for p := 0; p < cnt; p++ {
 							q := e + 8 + 56*p
-							gn = append(gn, fmt.Sprintf("[%d-%d]%s/%s", i16(body, q), i16(body, q+2), str16(body[q+4:]), str16(body[q+20:])))
+							s := fmt.Sprintf("[%d-%d]%s/%s", i16(body, q), i16(body, q+2), str16(body[q+4:]), str16(body[q+20:]))
+							if et == 0 {
+								s += fmt.Sprintf(" x%d>%d y%d>%d z%d>%d a%d>%d axis%d mode%d",
+									i16(body, q+36), i16(body, q+38), i16(body, q+40), i16(body, q+42), i16(body, q+44),
+									i16(body, q+46), i16(body, q+48), i16(body, q+50), i16(body, q+52), i16(body, q+54))
+							}
+							gn = append(gn, s)
 						}
 						desc += "{" + strings.Join(gn, " ") + "}"
 					}

@@ -39,8 +39,31 @@ Here's a basic brakedown of the structure of directories:
 │   ├── diagrams # Schematics and other wiring related docs
 │   └── manuals # Data sheets, user manuals and similar docs
 ├── firmware # External binaries, for example dumped bootloader, etc.
-└── internal # Core project functionality, considered as private library code
+├── internal # Core project functionality, considered as private library code
+│   ├── component # Pins, buttons, demultiplexer, BAM display scanner (TIM2)
+│   ├── controller # Board wiring (keys, DIP switches, UART, display)
+│   ├── engine # Re-implementation of the original iCubeSmart show engine (host testable)
+│   │   ├── blob # Show data blob parser + graph decompression
+│   │   ├── frame # Engine voxels -> MBI5024 bit planes
+│   │   ├── oracle # Byte-exact comparison against the vendor Simulator.dll (windows/386 only)
+│   │   ├── player # Cartoon player, key functions, script VM
+│   │   └── render # Canvas, graphs (rotation), balls, titles
+│   ├── runner # Main loop and modes
+│   └── show/original # Original show blob extracted from the vendor firmware
+├── scripts # Windows build/flash/monitor/dump scripts
+├── targets # Custom TinyGo target for the GD32F103RE (512 KB flash, 64 KB RAM)
+└── tools/fwtool # Extracts a show blob from a vendor firmware hex/bin
 ```
+
+## Original shows
+
+All premade shows of the original firmware run on the Go show engine. The show data is the original blob, embedded byte for byte.
+
+- DIP SW1/SW2 select the show group (Dynamic, Audio, Test, Text).
+- KEY1..KEY7 run the key functions stored in the blob (prev, next, speed+, speed-, pause, play mode, display off).
+- Holding KEY6 for 1 second cycles the runner mode (original shows, serial/Pico, debug).
+
+Run the engine tests with `go test ./internal/engine/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
 
 # Getting started
 
@@ -63,14 +86,18 @@ Unfinished. WORK IN PROGRESS! Do not use this.
 
 ## Quickstart
 
-1. Build project binary with Make:
+1. Build project binary (run from the repository root, the target file uses a relative linker script path):
     ```sh
-    make
+    scripts\build.cmd
     ```
-    or without Make:
+    or with Make / directly:
     ```sh
-    tinygo build -target bluepill-clone ./cmd/8x8_rgb_cube/main.go
+    make build_version
+    tinygo build -o bin/main.hex -target targets/gd32f103re.json -opt s -panic print -gc conservative ./cmd/8x8_rgb_cube
     ```
+    > The default `bluepill-clone` target is limited to 64 KB of flash, which is too small for the original shows.
+
+    On Windows `scripts\flash.cmd [COMx]` builds and flashes over UART with the STM32CubeProgrammer CLI (BOOT0 jumper set), skipping step 2.
 2. Flash newly created binary:
     <!-- TODO: Add screenshots -->
     1. Short the `BOOT0` pins on the GD32 yellow board

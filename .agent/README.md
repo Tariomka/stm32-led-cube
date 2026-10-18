@@ -4,18 +4,16 @@ Notes, plans and reference material for:
 1. porting the original iCubeSmart firmware to TinyGo
 2. fixing KEY5 (PA14)
 
-No project code has been changed so far.
-
-## Status (2026-10-18)
+## Status (code written, waiting for hardware)
 
 | Item | State |
 |---|---|
-| KEY5 / PA14 root cause | ✅ Found (TinyGo `Pin.Configure` bit-4 leak). Hardware confirmation pending |
+| KEY5 / PA14 | ✅ Root cause found (TinyGo `Pin.Configure` bit-4 leak), workaround in `component.NewInputPin`. Hardware confirmation pending (`cmd/gpio_diag`) |
 | Original firmware | ✅ Full dump secured. It matches the vendor `1-3D8RGB-Demo-20250128.hex` exactly |
 | Firmware architecture | ✅ Generic show engine + compiled data blob made by the PC "3D Software" (script VM, graph codecs) |
 | Hardware / pin map | ✅ From schematics + photos |
 | Flashing on this PC | ✅ CubeProgrammer CLI over COM4 (BOOT0 jumper) |
-| Porting | 🔄 Phase 1/2 in progress: blob format ✅ specified, engine spec drafted from `Simulator.dll`, firmware hardware layer indexed. See [re/](re/README.md) |
+| Porting | 🔄 Engine done and byte-exact against `Simulator.dll` (oracle tests). Firmware integrated (BAM scanner, keys, DIP groups) and builds (~95 KB flash). Open: hardware verification, audio input, IR, console, cascade. See [plan/porting-plan.md](plan/porting-plan.md) |
 
 ## Index
 

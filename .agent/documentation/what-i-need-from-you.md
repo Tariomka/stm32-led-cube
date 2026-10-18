@@ -28,18 +28,17 @@
   - Send `help`, or just Enter, and save the output.
   - Take a short video per DIP group (11 / 01 / 10 / 00).
   - Note what each key does.
-- [ ] Then flash the KEY5 experiment builds (E1–E4). I'll prepare them as `scripts\*.cmd` targets.
+- [ ] Then the KEY5 check: `scripts\build.cmd ./cmd/gpio_diag`, `scripts\flash.cmd COM4 bin\main.hex`, `scripts\monitor.cmd`. Follow the prompts and save the log (expected values are in each step's title).
+- [ ] Then our firmware: `scripts\flash.cmd` (builds + flashes COM4). Check and report:
+  - **Orientation:** DIP group Test (SW1/SW2 = 10). Do the test patterns sweep the same way as the original? If the cube is mirrored/rotated, `frame.Mapping` (`FlipX`, `FlipZ`, `FlipLayer`, `SwapXZ` in `controller.NewYellowBoard`) fixes it.
+  - **Layer order:** does "up" in the shows point up? If not, `FlipLayer`.
+  - **Colors:** red/green/blue in the right places (Test group has single-color fills).
+  - **DIP polarity:** which DIP position plays which group? (Code assumes 1 = pin high = switch off.)
+  - **Brightness/flicker:** 2 BAM planes, 400 µs base, ≈ 104 Hz full refresh. Any visible flicker or ghosting between layers?
+  - **Keys:** each key's function vs. the original. KEY6 held ≥ 1 s cycles the runner mode.
+  - **Speed:** compare a show's speed with the original video.
 
 ### 2. Later / optional
 
 - ST-Link (we'll debug it together some day).
 - Logic analyzer (exact scan timing of the original).
-
-### 3. Decision: may I start writing code?
-
-The next steps are code, not docs. Nothing gets staged or committed by me.
-- Host-side Go packages for the engine (`internal/engine/...`, testable with `go test`)
-- The custom TinyGo target
-- `scripts\*.cmd`
-- The KEY5 fix
-- An oracle test harness that loads `Simulator.dll` (windows/386)

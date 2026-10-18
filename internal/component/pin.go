@@ -1,14 +1,56 @@
 package component
 
-import "machine"
+import (
+	"device/stm32"
+	"machine"
+	"time"
+)
 
-// Pin that's setup for Input mode
+// Pin that's setup for Input mode with the internal pull-up enabled
 type InputPin struct{ machine.Pin }
 
+// NewInputPin avoids machine.PinInputPullup: TinyGo writes its extra pull-up flag bit into
+// the neighbouring pin's MODE field (this is what broke KEY5/PA14).
 func NewInputPin(pin machine.Pin) InputPin {
 	input := InputPin{Pin: pin}
-	input.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	input.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+	input.High() // ODR=1 selects pull-up
 	return input
+}
+
+const debounceTime = 30 * time.Millisecond
+
+// Active-low push button with a debounced press interrupt
+type Button struct {
+	InputPin
+	lastPress time.Time
+}
+
+func NewButton(pin machine.Pin) *Button {
+	return &Button{InputPin: NewInputPin(pin)}
+}
+
+func (this *Button) Pressed() bool {
+	return !this.Get()
+}
+
+// OnPress registers a callback that runs in interrupt context once per debounced press.
+func (this *Button) OnPress(callback func()) error {
+	return this.SetInterrupt(machine.PinFalling, func(machine.Pin) {
+		now := time.Now()
+		if now.Sub(this.lastPress) < debounceTime {
+			return
+		}
+		this.lastPress = now
+		callback()
+	})
+}
+
+// DisableDebugPort frees PA13, PA14, PA15, PB3 and PB4 for GPIO use (SWJ_CFG = 0b100).
+// Afterwards SWD only works through the BOOT0 bootloader or connect-under-reset.
+func DisableDebugPort() {
+	stm32.RCC.SetAPB2ENR_AFIOEN(stm32.RCC_APB2ENR_AFIOEN_Enabled)
+	stm32.AFIO.SetMAPR_SWJ_CFG(0b100)
 }
 
 // Pin that's setup for Output mode

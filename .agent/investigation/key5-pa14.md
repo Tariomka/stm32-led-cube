@@ -1,6 +1,6 @@
 # KEY5 (PA14) investigation
 
-Status: **root cause found by static analysis**. It still needs hardware confirmation (experiments E1–E4 below).
+Status: **root cause found by static analysis, workaround implemented** (`internal/component/pin.go`: `NewInputPin` = pull-down config + `High()`, `DisableDebugPort` = SWJ_CFG 100). It still needs hardware confirmation: `scripts\build.cmd ./cmd/gpio_diag`, then `scripts\flash.cmd COM4 bin\main.hex` (passing the file skips the rebuild), then `scripts\monitor.cmd`.
 
 ## TL;DR
 
@@ -131,6 +131,8 @@ I can draft the issue update or the PR text if you want. Any other TinyGo target
 ## Hardware experiments (tomorrow)
 
 Each experiment prints `GPIOx_CRL/CRH/IDR/ODR` for ports A/B/C over UART1 at boot and again after each step.
+
+Implemented as one program, `cmd/gpio_diag` (steps 1–4 ≈ E1, E2, E4, E3). `tmp/cmd/test` and `tmp/cmd/deez_nuts` import the removed `registers` package and no longer build.
 
 | # | Program | Expected result |
 |---|---|---|
