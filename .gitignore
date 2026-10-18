@@ -31,4 +31,5 @@ go.work.sum
 .vscode/settings.json
 
 # Exclude specific files
+.agent/external
 !firmware/*
