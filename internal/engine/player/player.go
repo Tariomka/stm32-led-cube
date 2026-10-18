@@ -59,9 +59,10 @@ type Player struct {
 	capturedKey int
 	colorStep   int
 
-	// AudioFrame selects the frame of Audio cartoons (0..63). The vendor PC simulator always
-	// uses 0; on the cube it follows the microphone level.
-	AudioFrame func() int
+	// AudioFrame selects the frame of Audio cartoons (0..63) for the cartoon's level mode
+	// (header Loop field). The vendor PC simulator always uses 0; on the cube it follows the
+	// microphone level (see package audio).
+	AudioFrame func(mode int) int
 	// ADC feeds the script functions GetAdc/GetRealAdc.
 	ADC func(channel int, raw bool) int
 	// Log receives the engine's console messages.
@@ -89,6 +90,20 @@ func (this *Player) SetGroup(group int) {
 func (this *Player) Current() int { return this.current }
 
 func (this *Player) Speed() int { return this.speed }
+
+// SetSpeed sets the speed index 0..7 (4 = normal).
+func (this *Player) SetSpeed(speed int) {
+	if speed >= 0 && speed < len(speedTenths) {
+		this.speed = speed
+	}
+}
+
+// Select restarts the show on cartoon n of the group.
+func (this *Player) Select(n int) {
+	if n >= 0 && n < len(this.cartoons) {
+		this.current, this.change = n, true
+	}
+}
 
 func (this *Player) log(msg string) {
 	if this.Log != nil {
@@ -184,7 +199,7 @@ func (this *Player) stepAudio(cartoon blob.Cartoon, now uint32) (bool, int) {
 
 	frame := 0
 	if this.AudioFrame != nil {
-		frame = this.AudioFrame()
+		frame = this.AudioFrame(int(cartoon.Header().Loop))
 	}
 	this.canvas.Clear(0)
 	renderFrame(cartoon, frame, this.canvas, this.assets)

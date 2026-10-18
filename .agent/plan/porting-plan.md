@@ -79,8 +79,10 @@ Each spec goes to `.agent/re/spec-*.md`:
 - [x] KEY5 fix + input layer (see [key5-fix-plan.md](key5-fix-plan.md)). `component.Button` (EXTI falling edge, 30 ms debounce). Hardware check: `cmd/gpio_diag`.
 - [x] **Display driver:** `component.Scanner`, TIM2 ISR, OE blanking, LE pulse, double buffer, 2 BAM planes (400/800 µs per layer, ~104 Hz). Confirmed on hardware (orientation, colors, DIP groups, keys).
 - [x] "Walk one LED" not needed: the Test group (DIP 10) checked bit/LED order and colors on hardware.
-- [ ] 24C02 EEPROM driver (I2C1, PB6/PB7).
-- [ ] ADC on PA0 (mic), IR capture on PC6, UART2 (PA2/PA3).
+- [x] 24C02 EEPROM driver (bit-banged, PB6/PB7 like the original): vendor type/serial records (`SetType`/`SetSerial`, `T='...'` at boot) and our player settings at 0x00 (speed, play mode, cartoon; saved 2 s after the last key action).
+- [x] ADC on PA0 (mic, `component.Microphone`, TIM3 1 kHz) and IR on PC6 (`component.InfraredReceiver`). Hardware check pending.
+- [x] Pin EXTI handlers run at priority 0xE0 (below TinyGo's tick timer at 0xC1). Before, `time.Now()` in a button ISR could spin forever if the tick timer overflowed during the ISR.
+- [x] UART2 (PA2/PA3) for cascade.
 
 ### Phase 4: Engine in Go (`internal/engine/...`, host-testable)
 
@@ -93,16 +95,18 @@ Each spec goes to `.agent/re/spec-*.md`:
 
 - [x] `runner`: `OnboardMode` driven by `engine/player`. DIP group selects the cartoon group at boot. Keys run the blob's key functions. KEY6 long press (≥ 1 s) cycles runner modes.
 - [x] Remove `internal/show` (test shows) and `internal/component/registers`. (`tmp/cmd/*` still imports `registers` and no longer builds; it's gitignored.)
-- [ ] Audio group: `Player.AudioFrame` is not fed yet (needs the ADC driver + firmware RE of the level → frame mapping).
+- [x] Audio group: `Player.AudioFrame(mode)` = microphone level (firmware algorithm, see `re/spec-engine.md`).
+- [x] IR remote: NEC decoder + the original button → key action table (`internal/remote`).
 - [ ] `SerialMode` loop is a placeholder; hook the Pico protocol to `Board.ShowLayout`.
 - [ ] Keep `SerialMode` / Pico protocol. Decide later how the desktop app talks to the engine (e.g. upload a blob, select a show, live frames).
-- [ ] UART console compatible with the vendor's (`Commands explain`, Regedit, `reboot` into the ROM bootloader).
-- [ ] Cascade, IR remote, Audio group.
+- [x] UART console compatible with the vendor's (`#?cmd?!`; Help, ReBoot, ReadMem, SetReg/GetReg/RegList/DelReg/ClrReg, SetType, SetSerial, Test). Shares UART1 with the Pico link through `console.Demux`. Registry in the vendor flash format in the last 4 KB of flash.
+- [x] Cascade (UART2): discovery, numbering, display placement by cube number, Sync with shared show clock and key mask. Original protocol, so it should interoperate with original-firmware cubes.
+- Not ported on purpose: vendor IAP bootloader / PC update tool, serial copy protection, IWDG watchdog, display `dir` = 1.
 
 ### Phase 6: Verification on hardware + docs
 
 - [ ] Side-by-side with the original: flash `FullDump_512K.bin` → record → flash ours → compare.
-- [ ] README: Windows setup, `scripts\*.cmd`, architecture.
+- [x] README: Windows setup, `scripts\*.cmd`, architecture.
 
 ## Order
 

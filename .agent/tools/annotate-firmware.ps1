@@ -4,7 +4,7 @@ param(
     [string] $Out = ".agent\external\re\Firmware.annotated.c"
 )
 
-# Appends "/* DAT_x=0x40010C00 GPIOB+0x0 */" to lines whose literal-pool constants point at peripherals.
+# Appends "/* DAT_x=0x40010C00 GPIOB+0x0 */" (peripherals) or "/* DAT_x=RAM_20000123 */" to lines using literal-pool constants.
 $names = @{
     '40000000' = 'TIM2'; '40000400' = 'TIM3'; '40000800' = 'TIM4'; '40000C00' = 'TIM5'; '40001000' = 'TIM6'; '40001400' = 'TIM7'
     '40003000' = 'IWDG'; '40003800' = 'SPI2'; '40003C00' = 'SPI3'; '40004400' = 'USART2'; '40004800' = 'USART3'
@@ -25,6 +25,7 @@ foreach ($line in [IO.File]::ReadLines((Resolve-Path $In))) {
         $off = [Convert]::ToInt32($m.Groups[1].Value, 16) - 0x08000000
         if ($off -lt 0 -or $off + 4 -gt $img.Length) { continue }
         $v = [BitConverter]::ToUInt32($img, $off)
+        if ($v -ge 0x20000000 -and $v -lt 0x20010000) { $ann += ('{0}=RAM_{1:X8}' -f $m.Value, $v); continue }
         if (-not (($v -ge 0x40000000 -and $v -lt 0x40030000) -or ($v -ge $scsStart -and $v -lt $scsEnd))) { continue }
         $base = [uint32]($v -band [uint32]4294966272)
         if ($v -ge $scsStart) { $base = if ($v -ge $scb) { $scb } elseif ($v -ge $nvic) { $nvic } else { $scsStart } }

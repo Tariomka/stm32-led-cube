@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/Tariomka/stm32-led-cube/internal/common/global"
@@ -9,6 +10,7 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/player"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/render"
+	"github.com/Tariomka/stm32-led-cube/internal/settings"
 )
 
 type Runner interface {
@@ -16,9 +18,8 @@ type Runner interface {
 }
 
 const (
-	cycleKey      = 5 // KEY6: short press = show key function, long press = cycle runner mode
-	longPressTime = time.Second
-	tick          = 10 * time.Millisecond
+	tick      = 10 * time.Millisecond
+	saveDelay = 2 * time.Second // settings are written once the user stops pressing keys
 )
 
 type CubeRunner struct {
@@ -26,9 +27,12 @@ type CubeRunner struct {
 	Player  *player.Player
 	Tracker *controller.StateTracker
 
-	canvas     render.Canvas
-	start      time.Time
-	cycleSince time.Time // when the pending KEY6 press started, zero if none
+	shows  *blob.Blob
+	canvas render.Canvas
+	group  int
+	saveAt time.Time // when to persist the settings, zero if nothing changed
+
+	input
 }
 
 func NewRunner(config RunnerConfig) Runner {
@@ -47,20 +51,56 @@ func NewRunner(config RunnerConfig) Runner {
 	runner := &CubeRunner{
 		Board:   board,
 		Tracker: controller.NewStateTracker(),
+		shows:   shows,
 		canvas:  render.Canvas{Displays: []render.Display{render.NewDisplay(0, 0, 0, 8, 8, 8)}},
-		start:   time.Now(),
+		group:   board.ShowGroup(),
 	}
-	runner.Player = player.New(shows, &runner.canvas, board.ShowGroup())
+	runner.Player = player.New(shows, &runner.canvas, runner.group)
 	runner.Player.Log = func(msg string) { println(msg) }
+	runner.Player.AudioFrame = board.AudioLevel
+	runner.Player.ADC = func(channel int, raw bool) int {
+		// Unverified: no original show calls GetAdc/GetRealAdc
+		if raw {
+			return board.AudioRaw()
+		}
+		return board.AudioLevel(0)
+	}
+	if saved, ok := board.LoadSettings(); ok {
+		runner.Player.SetSpeed(int(saved.Speed))
+		runner.Player.PlayAll = saved.PlayAll
+		if int(saved.Group) == runner.group {
+			runner.Player.Select(int(saved.Cartoon))
+		}
+	}
 	return runner
 }
 
-func (this *CubeRunner) millis() uint32 {
-	return uint32(time.Since(this.start).Milliseconds())
+func (this *CubeRunner) saveSettings() {
+	this.saveAt = time.Time{}
+	err := this.Board.SaveSettings(settings.Settings{
+		Speed:   uint8(this.Player.Speed()),
+		PlayAll: this.Player.PlayAll,
+		Group:   uint8(this.group),
+		Cartoon: uint8(this.Player.Current()),
+	})
+	if err != nil {
+		println("Save settings error!")
+	}
+}
+
+// action runs a key function of the original shows and schedules saving the settings.
+func (this *CubeRunner) action(run func()) {
+	if this.Tracker.CurrentMode != controller.OnboardMode {
+		return
+	}
+	run()
+	this.saveAt = time.Now().Add(saveDelay)
 }
 
 func (this *CubeRunner) Start() {
 	global.HandleStartup()
+	this.discoverCascade()
+	this.placeDisplay()
 
 	for {
 		switch this.Tracker.CurrentMode {
@@ -74,67 +114,55 @@ func (this *CubeRunner) Start() {
 	}
 }
 
-// runOnboard plays one step of the original shows and waits for its frame time,
-// handling keys every tick.
+// placeDisplay positions this cube in the show canvas by its cascade number, like the original.
+func (this *CubeRunner) placeDisplay() {
+	count, number := this.shows.DisplayCount(), this.link.Number
+	var display blob.Display
+	if number < count {
+		display = this.shows.Display(number)
+	} else {
+		println("Warn: Pos > Cubes, " + strconv.Itoa(number) + "," + strconv.Itoa(count))
+	}
+	if display.Dir != 0 {
+		println("Warn: display dir " + strconv.Itoa(display.Dir) + " is not supported")
+	}
+	println("Total=" + strconv.Itoa(count))
+	println("Run x=" + strconv.Itoa(display.X) + ",y=" + strconv.Itoa(display.Y) + ",z=" + strconv.Itoa(display.Z) +
+		",dir=" + strconv.Itoa(display.Dir))
+	this.canvas.Displays[0] = render.NewDisplay(display.X, display.Y, display.Z, 8, 8, 8)
+}
+
+// runOnboard plays one step of the original shows and waits for its frame time on the show
+// clock (shared by all cascaded cubes), handling input every tick.
 func (this *CubeRunner) runOnboard() {
-	rendered, waitMs := this.Player.Step(this.millis())
+	start := this.clock()
+	rendered, waitMs := this.Player.Step(uint32(start))
 	if rendered {
 		this.Board.Show(this.canvas.Displays[0].Voxels)
 	}
 	this.Board.SetBlank(this.Player.DisplayOff)
 
-	deadline := time.Now().Add(time.Duration(waitMs) * time.Millisecond)
+	deadline := start + uint64(waitMs)
 	for {
-		if this.handleKeys() {
+		if this.handleInput() {
 			return
 		}
-		remaining := time.Until(deadline)
-		if remaining <= 0 {
+		now := this.clock()
+		if now >= deadline {
 			return
 		}
-		time.Sleep(min(remaining, tick))
-	}
-}
-
-// handleKeys applies pressed keys; it returns true when the runner mode changed.
-func (this *CubeRunner) handleKeys() bool {
-	keys := this.Board.TakeKeys()
-	for key := 0; key < controller.KeyCount; key++ {
-		if keys&(1<<key) == 0 {
-			continue
+		wait := tick
+		if this.link.Master {
+			wait = min(time.Duration(deadline-now)*time.Millisecond, tick)
 		}
-		if key == cycleKey {
-			this.cycleSince = time.Now()
-			continue
-		}
-		if this.Tracker.CurrentMode == controller.OnboardMode {
-			this.Player.Key(key)
-		}
+		time.Sleep(wait)
 	}
-
-	if this.cycleSince.IsZero() {
-		return false
-	}
-	if this.Board.KeyHeld(cycleKey) {
-		if time.Since(this.cycleSince) < longPressTime {
-			return false
-		}
-		this.cycleSince = time.Time{}
-		this.Tracker.CycleMode()
-		this.Board.SetBlank(false)
-		return true
-	}
-	this.cycleSince = time.Time{}
-	if this.Tracker.CurrentMode == controller.OnboardMode {
-		this.Player.Key(cycleKey)
-	}
-	return false
 }
 
 func (this *CubeRunner) runDebugLoop() {
 	// Placeholder
 	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
-	this.handleKeys()
+	this.handleInput()
 }
 
 func (this *CubeRunner) runSerialLoop() {
@@ -146,7 +174,7 @@ func (this *CubeRunner) runSerialLoop() {
 	}
 	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
 	for range 200 {
-		if this.handleKeys() {
+		if this.handleInput() {
 			return
 		}
 		time.Sleep(tick)

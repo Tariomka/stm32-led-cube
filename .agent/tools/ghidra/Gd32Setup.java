@@ -50,6 +50,29 @@ public class Gd32Setup extends GhidraScript {
 
         seedVectors(IAP_VECTORS, 76, "iap_vec_");
         seedVectors(APP_VECTORS, 76, "app_vec_");
+        seedPointers(0x08006000L, BLOB_START);
+        seedPointers(BLOB_END, 0x08039000L);
+    }
+
+    // Handlers registered at runtime (IRQ table in RAM, VM opcode tables) are only referenced
+    // as Thumb pointers in literal pools.
+    private void seedPointers(long start, long end) throws Exception {
+        for (long p = start; p + 4 <= end; p += 4) {
+            long v = getInt(toAddr(p)) & 0xFFFFFFFFL;
+            if ((v & 1) == 0 || v == 0xFFFFFFFFL || !inCode(v & ~1L)) {
+                continue;
+            }
+            Address a = toAddr(v & ~1L);
+            if (getFunctionContaining(a) != null) {
+                continue;
+            }
+            new DisassembleCommand(new AddressSet(a), null, true).applyTo(currentProgram, monitor);
+            createFunction(a, null);
+        }
+    }
+
+    private static boolean inCode(long a) {
+        return (a >= 0x08006000L && a < BLOB_START) || (a >= BLOB_END && a < 0x08039000L);
     }
 
     private void createBlock(Memory mem, String name, long start, long size) throws Exception {

@@ -28,8 +28,9 @@ loop forever:
               if changeRequested: break out to "next selection"
   Script: run VM (init, then OnLoop) until RET_EVENT, then continue
   Audio:  deadline = now + audioTime·1000 (0 = none)
-          repeat: clear; render elements with frame 0; frameWait(delay)   (audio data feeds via system state ❓)
+          repeat: clear; render elements with frame = audioLevel(mode); frameWait(delay)
           until deadline passed or changeRequested
+          (the DLL always uses frame 0; the firmware uses the mic level, see "Audio level" below ✅)
   after the cartoon: if playModel == 1 -> advance to next (wrap to first); else replay same
   (key actions may already have set "current" and changeRequested; then that wins)
 ```
@@ -37,6 +38,20 @@ loop forever:
 - **Speed table** (`speedIdx` 0…7): `0.1, 0.2, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0`. Default index 4 = 1.0.
 - Frame wait = `(delay_ms + 0.0) / speed`, truncated to an int ms.
 - `displayOff` (key fn 9) blanks the output but the player keeps running 🔶 (the firmware decides what "off" does).
+
+## Audio level (firmware `FUN_08007048`, `FUN_08032584`) ✅
+
+Audio cartoon header: the `FrameCount` field is the duration in seconds (0 = forever), the `Loop` field is the level **mode**.
+
+- ADC1 channel 0 (PA0), continuous conversion, 55.5-cycle sample time, 12-bit right aligned, DMA1 ch1 into one halfword.
+- A 1 ms task stores the sample in a ring of 20 (initialised to 1050) and keeps `max` and `min` of the ring.
+- `up = max < 1251 ? 0 : max < 2300 ? (max-1250)*62/1050 + 1 : 63`
+- `down = min >= 850 ? 0 : min < -199 ? 63 : (850-min)*62/1050 + 1`
+- `level = max(up, down)`. Mode 2: if `level < held`, `held--` and return `held` (falls one step per call), else `held = level`.
+- The frame rendered is `level` (0..63). All 10 audio cartoons in our blob use mode 0, 10 s, delay 10.
+- No original show calls `GetAdc`/`GetRealAdc` (checked by running all groups); their firmware mapping is not traced.
+
+Implemented: `internal/engine/audio` (host tests), `component.Microphone` (TIM3 1 kHz ISR).
 
 ## Key functions (`FUN_10004f20`) ✅
 

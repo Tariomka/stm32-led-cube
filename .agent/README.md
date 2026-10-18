@@ -13,7 +13,7 @@ Notes, plans and reference material for:
 | Firmware architecture | ✅ Generic show engine + compiled data blob made by the PC "3D Software" (script VM, graph codecs) |
 | Hardware / pin map | ✅ From schematics + photos |
 | Flashing on this PC | ✅ CubeProgrammer CLI over COM4 (BOOT0 jumper) |
-| Porting | 🔄 Engine done and byte-exact against `Simulator.dll` (oracle tests). Firmware integrated (BAM scanner, keys, DIP groups) and builds (~95 KB flash). Open: hardware verification, audio input, IR, console, cascade. See [plan/porting-plan.md](plan/porting-plan.md) |
+| Porting | 🔄 All original features implemented: engine (byte-exact vs `Simulator.dll`), display/keys/DIP (confirmed on hardware), audio, IR remote, UART console + registry, EEPROM, cascade. Hardware checks pending for the new parts. See [plan/porting-plan.md](plan/porting-plan.md) |
 
 ## Index
 

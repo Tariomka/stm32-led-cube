@@ -28,15 +28,15 @@
   - Send `help`, or just Enter, and save the output.
   - Take a short video per DIP group (11 / 01 / 10 / 00).
   - Note what each key does.
-- [ ] Then the KEY5 check: `scripts\build.cmd ./cmd/gpio_diag`, `scripts\flash.cmd COM4 bin\main.hex`, `scripts\monitor.cmd`. Follow the prompts and save the log (expected values are in each step's title).
-- [ ] Then our firmware: `scripts\flash.cmd` (builds + flashes COM4). Check and report:
-  - **Orientation:** DIP group Test (SW1/SW2 = 10). Do the test patterns sweep the same way as the original? If the cube is mirrored/rotated, `frame.Mapping` (`FlipX`, `FlipZ`, `FlipLayer`, `SwapXZ` in `controller.NewYellowBoard`) fixes it.
-  - **Layer order:** does "up" in the shows point up? If not, `FlipLayer`.
-  - **Colors:** red/green/blue in the right places (Test group has single-color fills).
-  - **DIP polarity:** which DIP position plays which group? (Code assumes 1 = pin high = switch off.)
-  - **Brightness/flicker:** 2 BAM planes, 400 µs base, ≈ 104 Hz full refresh. Any visible flicker or ghosting between layers?
-  - **Keys:** each key's function vs. the original. KEY6 held ≥ 1 s cycles the runner mode.
-  - **Speed:** compare a show's speed with the original video.
+- [x] KEY5 check and our firmware (orientation, colors, DIP groups, keys): confirmed working.
+- [ ] **Audio group** (DIP SW1/SW2 = 01): play music / clap near the cube. The cartoons should react to loudness. Report if they are always flat (level 0) or always full.
+- [ ] **IR remote** (if you have the kit's remote): press each button. The monitor prints `IR <code>`. Check CH- (display off), CH+ (play mode), VOL-/EQ (previous/next), VOL+ (pause), 0..9 (jump to cartoon). Send me any codes that don't match.
+- [ ] Keys after the interrupt priority change: press keys quickly and often for a while; the cube must never freeze.
+- [ ] Keys now act through the cascade key mask (up to ~10 ms later): check short taps and long presses still work, and KEY6 held 1 s still cycles the mode.
+- [ ] **Boot log** (`scripts\monitor.cmd`): expect `T='8x8x8A'` (or similar), `Config1=..`, `DeviceType=1,DeviceNum=0`, `Run x=0,...`. Boot now takes ~1.1 s longer (cascade discovery, like the original).
+- [ ] **Console**: in the monitor type `#?Help?!` then `#?SetReg name cube?!`, `#?RegList?!`, power-cycle, `#?GetReg name?!` (must survive), `#?ReadMem 0x08000000 0 32?!`, `#?ReBoot?!`. Don't run `SetType`/`SetSerial` unless you want to overwrite the vendor records.
+- [ ] **EEPROM settings**: change speed / play mode / cartoon with the keys, wait 3 s, power-cycle: they must be restored.
+- [ ] **Cascade** (only if you get a second cube): connect cube A's jack TX to cube B's RX, power both together. B must print `DeviceType=0,DeviceNum=1` and play in step with A, following A's keys.
 
 ### 2. Later / optional
 
