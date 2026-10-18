@@ -30,7 +30,7 @@ type Scanner struct {
 const basePlaneMicros = 400
 
 func NewScanner(spi *machine.SPI, sck, sdo, le, oe machine.Pin, demux Demultiplexer) *Scanner {
-	s := &Scanner{
+	scanner := &Scanner{
 		spi:   NewSpiOutput(spi, sck, sdo),
 		latch: NewOutputPin(le),
 		blank: NewOutputPin(oe),
@@ -40,79 +40,79 @@ func NewScanner(spi *machine.SPI, sck, sdo, le, oe machine.Pin, demux Demultiple
 		layer: frame.Layers - 1,
 		plane: frame.Planes - 1,
 	}
-	s.blank.High()
-	s.latch.Low()
-	for p := range s.planeTicks {
-		s.planeTicks[p] = basePlaneMicros << p
+	scanner.blank.High()
+	scanner.latch.Low()
+	for p := range scanner.planeTicks {
+		scanner.planeTicks[p] = basePlaneMicros << p
 	}
-	return s
+	return scanner
 }
 
 // Start configures TIM2 for 1 us ticks and begins refreshing.
-func (s *Scanner) Start() {
+func (this *Scanner) Start() {
 	// A 65 ms period makes TinyGo choose prescaler 72 -> 1 MHz timer clock
-	s.timer.Configure(machine.PWMConfig{Period: 65_000_000})
-	s.timer.Device.ARR.Set(s.planeTicks[0] - 1)
-	s.timer.Device.EGR.SetBits(stm32.TIM_EGR_UG)
-	s.timer.SetWraparoundInterrupt(s.refresh)
+	this.timer.Configure(machine.PWMConfig{Period: 65_000_000})
+	this.timer.Device.ARR.Set(this.planeTicks[0] - 1)
+	this.timer.Device.EGR.SetBits(stm32.TIM_EGR_UG)
+	this.timer.SetWraparoundInterrupt(this.refresh)
 }
 
 // Back returns the buffer to draw the next frame into. It must not be used again until Present.
-func (s *Scanner) Back() *frame.Bits {
-	return &s.buffers[1-s.front]
+func (this *Scanner) Back() *frame.Bits {
+	return &this.buffers[1-this.front]
 }
 
 // Present shows the back buffer from the next full refresh cycle on.
-func (s *Scanner) Present() {
+func (this *Scanner) Present() {
 	mask := interrupt.Disable()
-	s.pending = true
+	this.pending = true
 	interrupt.Restore(mask)
-	for s.isPending() {
+	for this.isPending() {
 	}
 }
 
-func (s *Scanner) isPending() bool {
+func (this *Scanner) isPending() bool {
 	mask := interrupt.Disable()
-	p := s.pending
+	isPending := this.pending
 	interrupt.Restore(mask)
-	return p
+	return isPending
 }
 
 // SetBlank turns all LEDs off (true) or resumes the refresh (false).
-func (s *Scanner) SetBlank(blank bool) {
+func (this *Scanner) SetBlank(blank bool) {
 	mask := interrupt.Disable()
-	s.blanked = blank
+	this.blanked = blank
 	interrupt.Restore(mask)
 }
 
-func (s *Scanner) refresh() {
-	s.blank.High()
+func (this *Scanner) refresh() {
+	this.blank.High()
 
-	s.plane++
-	if s.plane == frame.Planes {
-		s.plane = 0
-		s.layer++
-		if s.layer == frame.Layers {
-			s.layer = 0
-			if s.pending {
-				s.front = 1 - s.front
-				s.pending = false
+	this.plane++
+	if this.plane == frame.Planes {
+		this.plane = 0
+		this.layer++
+		if this.layer == frame.Layers {
+			this.layer = 0
+			if this.pending {
+				this.front = 1 - this.front
+				this.pending = false
 			}
 		}
 	}
-	next := s.plane + 1
+	next := this.plane + 1
 	if next == frame.Planes {
 		next = 0
 	}
 	// ARR is preloaded: this value applies to the period after the one that starts now
-	s.timer.Device.ARR.Set(s.planeTicks[next] - 1)
+	this.timer.Device.ARR.Set(this.planeTicks[next] - 1)
 
-	if s.blanked {
+	if this.blanked {
 		return
 	}
-	s.spi.Tx(s.buffers[s.front][s.plane][s.layer][:], nil)
-	s.latch.High()
-	s.latch.Low()
-	s.demux.EnableLayer(uint8(s.layer))
-	s.blank.Low()
+	this.spi.Tx(this.buffers[this.front][this.plane][this.layer][:], nil)
+	this.latch.High()
+	this.latch.Low()
+	this.demux.EnableLayer(uint8(this.layer))
+	this.blank.Low()
 }

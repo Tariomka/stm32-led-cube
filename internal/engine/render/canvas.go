@@ -1,6 +1,4 @@
 // Package render draws the show primitives of the original iCubeSmart engine into voxel buffers.
-// Every function is a port of the vendor's Simulator.dll (see .agent/re/spec-engine.md);
-// integer maths, clipping and draw order are kept identical on purpose.
 package render
 
 // Voxel colors are 6-bit 0bRRGGBB values.
@@ -28,9 +26,9 @@ type Canvas struct {
 	Displays []Display
 }
 
-func (c *Canvas) Clear(color byte) {
-	for i := range c.Displays {
-		v := c.Displays[i].Voxels
+func (this *Canvas) Clear(color byte) {
+	for i := range this.Displays {
+		v := this.Displays[i].Voxels
 		for j := range v {
 			v[j] = color
 		}
@@ -54,9 +52,9 @@ func paletteColor(palette string, index byte) byte {
 }
 
 // Point sets one voxel (script function Point). Any non-zero mode mixes.
-func (c *Canvas) Point(x, y, z int, color byte, mix int) {
-	for i := range c.Displays {
-		d := &c.Displays[i]
+func (this *Canvas) Point(x, y, z int, color byte, mix int) {
+	for i := range this.Displays {
+		d := &this.Displays[i]
 		dx, dy, dz := x-d.X, y-d.Y, z-d.Z
 		if dx < 0 || dx >= d.L || dy < 0 || dy >= d.H || dz < 0 || dz >= d.W {
 			continue
@@ -79,9 +77,9 @@ func extend(d int) int {
 }
 
 // Line draws a 3-D DDA line (script function Line). Any non-zero mode mixes.
-func (c *Canvas) Line(x1, y1, z1, x2, y2, z2 int, color byte, mix int) {
-	for i := range c.Displays {
-		c.Displays[i].line(x1, y1, z1, x2, y2, z2, color, mix)
+func (this *Canvas) Line(x1, y1, z1, x2, y2, z2 int, color byte, mix int) {
+	for i := range this.Displays {
+		this.Displays[i].line(x1, y1, z1, x2, y2, z2, color, mix)
 	}
 }
 

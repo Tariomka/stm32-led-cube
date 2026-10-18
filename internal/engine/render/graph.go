@@ -38,13 +38,13 @@ const (
 
 // Graph draws a graph with its minimum corner at (x, y, z), rotated by angle degrees
 // around the given axis (through the graph centre). palette maps the graph's indexes to colors.
-func (c *Canvas) Graph(g Voxels, palette string, x, y, z, axis, angle, mode int) {
+func (this *Canvas) Graph(g Voxels, palette string, x, y, z, axis, angle, mode int) {
 	angle %= 360
 	if angle < 0 {
 		angle += 360
 	}
-	for i := range c.Displays {
-		d := &c.Displays[i]
+	for i := range this.Displays {
+		d := &this.Displays[i]
 		if angle == 0 {
 			d.blit(g, palette, x, y, z, mode)
 		} else {
@@ -149,9 +149,9 @@ func (d *Display) rotated(g Voxels, palette string, gx, gy, gz, axis, angle, mod
 
 // Ball draws a sphere. Centre and radius are in 1/100 voxel units. The outer 0.9 voxel shell
 // gets colorOut, the next shell colorIn, and the core colorIn unless hollow.
-func (c *Canvas) Ball(x, y, z, r int, colorOut, colorIn byte, hollow bool) {
-	for i := range c.Displays {
-		c.Displays[i].ball(x, y, z, r, colorOut, colorIn, hollow)
+func (this *Canvas) Ball(x, y, z, r int, colorOut, colorIn byte, hollow bool) {
+	for i := range this.Displays {
+		this.Displays[i].ball(x, y, z, r, colorOut, colorIn, hollow)
 	}
 }
 
@@ -189,9 +189,9 @@ func (d *Display) ball(x, y, z, r int, colorOut, colorIn byte, hollow bool) {
 
 // Title scrolls a text strip along a path. path holds (i16 x, i16 z) column positions;
 // column 0 of the strip is at path[step] and later columns trail behind it.
-func (c *Canvas) Title(g Voxels, palette string, path string, high, style, step int) {
-	for i := range c.Displays {
-		c.Displays[i].title(g, palette, path, high, style, step)
+func (this *Canvas) Title(g Voxels, palette string, path string, high, style, step int) {
+	for i := range this.Displays {
+		this.Displays[i].title(g, palette, path, high, style, step)
 	}
 }
 

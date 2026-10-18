@@ -1,5 +1,4 @@
-// Package frame converts engine voxel buffers into the bit planes shifted into the cube's
-// MBI5024 driver chain.
+// Package frame converts engine voxel buffers into the bit planes shifted into the cube's MBI5024 driver chain.
 package frame
 
 // Layer data layout (from led-common-lib): 24 bytes per layer, sent LSB first.
@@ -26,38 +25,39 @@ type Mapping struct {
 }
 
 // Encode converts an 8x8x8 voxel buffer (index x + y*8 + z*64, colors 0bRRGGBB) into bit planes.
-func Encode(voxels []byte, m Mapping, out *Bits) {
+func Encode(voxels []byte, mapping Mapping, out *Bits) {
 	*out = Bits{}
-	for z := 0; z < 8; z++ {
-		for y := 0; y < 8; y++ {
-			for x := 0; x < 8; x++ {
+	for z := range 8 {
+		for y := range 8 {
+			for x := range 8 {
 				c := voxels[x+y*8+z*64]
 				if c == 0 {
 					continue
 				}
-				col, row, layer := x, z, y
-				if m.SwapXZ {
-					col, row = row, col
+
+				column, row, layer := x, z, y
+				if mapping.SwapXZ {
+					column, row = row, column
 				}
-				if m.FlipX {
-					col = 7 - col
+				if mapping.FlipX {
+					column = 7 - column
 				}
-				if m.FlipZ {
+				if mapping.FlipZ {
 					row = 7 - row
 				}
-				if m.FlipLayer {
+				if mapping.FlipLayer {
 					layer = 7 - layer
 				}
-				bit := byte(1) << col
-				for p := 0; p < Planes; p++ {
-					if c>>(4+p)&1 != 0 {
-						out[p][layer][redOffset+row] |= bit
+				bit := byte(1) << column
+				for depth := range Planes {
+					if c>>(4+depth)&1 != 0 {
+						out[depth][layer][redOffset+row] |= bit
 					}
-					if c>>(2+p)&1 != 0 {
-						out[p][layer][greenOffset+row] |= bit
+					if c>>(2+depth)&1 != 0 {
+						out[depth][layer][greenOffset+row] |= bit
 					}
-					if c>>p&1 != 0 {
-						out[p][layer][blueOffset+row] |= bit
+					if c>>depth&1 != 0 {
+						out[depth][layer][blueOffset+row] |= bit
 					}
 				}
 			}

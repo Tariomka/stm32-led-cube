@@ -29,23 +29,23 @@ func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
 	return demux
 }
 
-func (demux Demultiplexer) EnableLayer(index uint8) error {
+func (this Demultiplexer) EnableLayer(index uint8) error {
 	if err := utils.ErrIfOutOfBounds(index); err != nil {
 		return err
 	}
 
-	demux.MultiEnable.Low()
-	demux.MultiA0.Set(index&1 == 1)
-	demux.MultiA1.Set(index>>1&1 == 1)
-	demux.MultiA2.Set(index>>2&1 == 1)
+	this.MultiEnable.Low()
+	this.MultiA0.Set(index&1 == 1)
+	this.MultiA1.Set(index>>1&1 == 1)
+	this.MultiA2.Set(index>>2&1 == 1)
 
 	return nil
 }
 
-func (demux Demultiplexer) Disable() {
-	demux.MultiEnable.High()
+func (this Demultiplexer) Disable() {
+	this.MultiEnable.High()
 }
 
-func (demux Demultiplexer) Enable() {
-	demux.MultiEnable.Low()
+func (this Demultiplexer) Enable() {
+	this.MultiEnable.Low()
 }

@@ -162,13 +162,13 @@ func (this *YellowBoard) Send(message string) {
 }
 
 func (this *YellowBoard) Receive() []byte {
-	dtype, content, err := this.UartProcessor.Read()
+	dataType, content, err := this.UartProcessor.Read()
 	if err != nil {
 		global.HandleError()
 		return nil
 	}
 
-	switch dtype {
+	switch dataType {
 	case network.UartPing:
 		this.UartProcessor.SendPong()
 	}

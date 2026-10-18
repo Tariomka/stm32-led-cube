@@ -69,185 +69,212 @@ type Player struct {
 }
 
 // New creates a player for show group 0..3 drawing into canvas.
-func New(b *blob.Blob, canvas *render.Canvas, group int) *Player {
-	p := &Player{blob: b, canvas: canvas, assets: newAssets(b)}
+func New(blob *blob.Blob, canvas *render.Canvas, group int) *Player {
+	p := &Player{blob: blob, canvas: canvas, assets: newAssets(blob)}
 	p.assets.Missing = func(kind, name string) { p.log("Not found " + kind + ":'" + name + "'") }
 	p.SetGroup(group)
 	return p
 }
 
 // SetGroup restarts the player on another show group with default settings.
-func (p *Player) SetGroup(group int) {
-	p.cartoons = p.blob.Group(group)
-	p.current, p.running, p.change = 0, false, false
-	p.PlayAll, p.Paused, p.DisplayOff = true, false, false
-	p.speed = defaultSpeed
-	p.keyCapture, p.capturedKey = false, 0
-	p.vm = nil
+func (this *Player) SetGroup(group int) {
+	this.cartoons = this.blob.Group(group)
+	this.current, this.running, this.change = 0, false, false
+	this.PlayAll, this.Paused, this.DisplayOff = true, false, false
+	this.speed = defaultSpeed
+	this.keyCapture, this.capturedKey = false, 0
+	this.vm = nil
 }
 
-func (p *Player) Current() int { return p.current }
+func (this *Player) Current() int { return this.current }
 
-func (p *Player) Speed() int { return p.speed }
+func (this *Player) Speed() int { return this.speed }
 
-func (p *Player) log(msg string) {
-	if p.Log != nil {
-		p.Log(msg)
+func (this *Player) log(msg string) {
+	if this.Log != nil {
+		this.Log(msg)
 	}
 }
 
 // Step advances the show. When rendered is true a new frame is in the canvas and should be
 // shown for waitMs; otherwise call Step again after waitMs. now is a millisecond clock.
-func (p *Player) Step(now uint32) (rendered bool, waitMs int) {
-	if p.Paused {
+func (this *Player) Step(now uint32) (rendered bool, waitMs int) {
+	if this.Paused {
 		return false, pollMs
 	}
-	if len(p.cartoons) == 0 {
+
+	if len(this.cartoons) == 0 {
 		return false, pollMs
 	}
-	for tries := 0; tries <= 2*len(p.cartoons)+1; tries++ {
-		if p.change {
-			p.change, p.running, p.vm = false, false, nil
+
+	for tries := 0; tries <= 2*len(this.cartoons)+1; tries++ {
+		if this.change {
+			this.change, this.running, this.vm = false, false, nil
 		}
-		c := p.cartoons[p.current]
-		if !p.running {
-			p.start(c, now)
+		c := this.cartoons[this.current]
+		if !this.running {
+			this.start(c, now)
 		}
 		switch c.Type {
 		case blob.Normal:
-			if rendered, waitMs = p.stepNormal(c); rendered {
+			if rendered, waitMs = this.stepNormal(c); rendered {
 				return
 			}
 		case blob.Audio:
-			if rendered, waitMs = p.stepAudio(c, now); rendered {
+			if rendered, waitMs = this.stepAudio(c, now); rendered {
 				return
 			}
 		case blob.Script:
 			var done bool
-			if rendered, waitMs, done = p.stepScript(c, now); !done {
+			if rendered, waitMs, done = this.stepScript(c, now); !done {
 				return
 			}
 		}
-		p.finish()
+		this.finish()
 	}
+
 	return false, pollMs
 }
 
-func (p *Player) start(c blob.Cartoon, now uint32) {
-	p.running, p.loop, p.frame, p.drawn, p.until = true, 0, 0, false, 0
-	if c.Type == blob.Audio {
-		if secs := c.Header().FrameCount; secs != 0 {
-			p.until = now + uint32(secs)*1000
+func (this *Player) start(cartoon blob.Cartoon, now uint32) {
+	this.running, this.loop, this.frame, this.drawn, this.until = true, 0, 0, false, 0
+	if cartoon.Type == blob.Audio {
+		if secs := cartoon.Header().FrameCount; secs != 0 {
+			this.until = now + uint32(secs)*1000
 		}
 	}
-	if c.Type == blob.Script {
-		p.vm = newVM(p, c.Body)
+	if cartoon.Type == blob.Script {
+		this.vm = newVM(this, cartoon.Body)
 	}
 }
 
 // finish ends the current cartoon; the next one follows the play model.
-func (p *Player) finish() {
-	p.running, p.vm = false, nil
-	if p.PlayAll {
-		p.current = (p.current + 1) % len(p.cartoons)
+func (this *Player) finish() {
+	this.running, this.vm = false, nil
+	if this.PlayAll {
+		this.current = (this.current + 1) % len(this.cartoons)
 	}
 }
 
-func (p *Player) frameWait(delay int) int {
-	return delay * 10 / speedTenths[p.speed]
+func (this *Player) frameWait(delay int) int {
+	return delay * 10 / speedTenths[this.speed]
 }
 
-func (p *Player) stepNormal(c blob.Cartoon) (bool, int) {
-	h := c.Header()
-	loops := int(uint16(h.Loop))
-	if h.FrameCount <= 0 || p.loop >= loops {
+func (this *Player) stepNormal(cartoon blob.Cartoon) (bool, int) {
+	header := cartoon.Header()
+	loops := int(uint16(header.Loop))
+	if header.FrameCount <= 0 || this.loop >= loops {
 		return false, 0
 	}
-	p.canvas.Clear(0)
-	renderFrame(c, p.frame, p.canvas, p.assets)
-	p.frame++
-	if p.frame >= h.FrameCount {
-		p.frame = 0
-		p.loop++
+
+	this.canvas.Clear(0)
+	renderFrame(cartoon, this.frame, this.canvas, this.assets)
+	this.frame++
+	if this.frame >= header.FrameCount {
+		this.frame = 0
+		this.loop++
 	}
-	return true, p.frameWait(h.Delay)
+	return true, this.frameWait(header.Delay)
 }
 
-func (p *Player) stepAudio(c blob.Cartoon, now uint32) (bool, int) {
-	if p.drawn && p.until != 0 && int32(now-p.until) >= 0 {
+func (this *Player) stepAudio(cartoon blob.Cartoon, now uint32) (bool, int) {
+	if this.drawn && this.until != 0 && int32(now-this.until) >= 0 {
 		return false, 0
 	}
+
 	frame := 0
-	if p.AudioFrame != nil {
-		frame = p.AudioFrame()
+	if this.AudioFrame != nil {
+		frame = this.AudioFrame()
 	}
-	p.canvas.Clear(0)
-	renderFrame(c, frame, p.canvas, p.assets)
-	p.drawn = true
-	return true, p.frameWait(c.Header().Delay)
+	this.canvas.Clear(0)
+	renderFrame(cartoon, frame, this.canvas, this.assets)
+	this.drawn = true
+	return true, this.frameWait(cartoon.Header().Delay)
 }
 
 // Key runs the configured function of KEY1..KEY7 (key 0..6).
-func (p *Player) Key(key int) {
-	p.Action(p.blob.KeyFunction(key))
+func (this *Player) Key(key int) {
+	this.Action(this.blob.KeyFunction(key))
 }
 
-func (p *Player) Action(action int) {
+func (this *Player) Action(action int) {
 	if action < 1 {
 		return
 	}
-	if p.keyCapture {
-		p.capturedKey = action
+
+	if this.keyCapture {
+		this.capturedKey = action
 		return
 	}
-	n := len(p.cartoons)
+
+	n := len(this.cartoons)
 	if n == 0 {
 		return
 	}
+
 	if action >= ActionJumpCartoon && action < ActionJumpCartoon+10 {
 		target := action - ActionJumpCartoon
 		if target >= n {
 			return
 		}
-		p.log("Change Cartoon")
-		p.current, p.change = target, true
+
+		this.log("Change Cartoon")
+		this.current, this.change = target, true
 		return
 	}
+
 	switch action {
 	case ActionReplay:
-		p.log("Replay Cartoon")
-		p.change = true
+		this.log("Replay Cartoon")
+		this.change = true
 	case ActionPrevious:
-		p.log("Previous Cartoon")
-		p.current = (p.current + n - 1) % n
-		p.change = true
+		this.log("Previous Cartoon")
+		this.current = (this.current + n - 1) % n
+		this.change = true
 	case ActionNext:
-		p.log("Next Cartoon")
-		p.current = (p.current + 1) % n
-		p.change = true
+		this.log("Next Cartoon")
+		this.current = (this.current + 1) % n
+		this.change = true
 	case ActionSpeedUp:
-		if p.speed < len(speedTenths)-1 {
-			p.speed++
-			p.log("Add speed")
+		if this.speed < len(speedTenths)-1 {
+			this.speed++
+			this.log("Add speed")
 		}
 	case ActionSpeedReset:
-		if p.speed != defaultSpeed {
-			p.speed = defaultSpeed
-			p.log("Speed reset")
+		if this.speed != defaultSpeed {
+			this.speed = defaultSpeed
+			this.log("Speed reset")
 		}
 	case ActionSpeedDown:
-		if p.speed > 0 {
-			p.speed--
-			p.log("Sub speed")
+		if this.speed > 0 {
+			this.speed--
+			this.log("Sub speed")
 		}
 	case ActionPlayModel:
-		p.PlayAll = !p.PlayAll
-		p.log("Play Model")
+		this.PlayAll = !this.PlayAll
+		this.log("Play Model")
 	case ActionPause:
-		p.Paused = !p.Paused
-		p.log("Pause")
+		this.Paused = !this.Paused
+		this.log("Pause")
 	case ActionDisplayOff:
-		p.DisplayOff = !p.DisplayOff
-		p.log("Display off")
+		this.DisplayOff = !this.DisplayOff
+		this.log("Display off")
 	}
+}
+
+// stepScript runs the script until it waits, ends or uses up its instruction budget.
+func (this *Player) stepScript(cartoon blob.Cartoon, now uint32) (rendered bool, waitMs int, done bool) {
+	v := this.vm
+	if v == nil {
+		return false, 0, true
+	}
+	for i := 0; i < maxSteps; i++ {
+		if v.phase == 2 || v.failed {
+			return false, 0, true
+		}
+		if wait, yielded := v.exec(now); yielded {
+			return true, this.frameWait(wait), false
+		}
+	}
+	return false, 0, false
 }

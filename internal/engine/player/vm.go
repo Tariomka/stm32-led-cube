@@ -96,7 +96,7 @@ const (
 )
 
 type vm struct {
-	p       *Player
+	player  *Player
 	mem     []byte
 	bodyLen int
 	a, b    int32
@@ -110,7 +110,7 @@ type vm struct {
 }
 
 func newVM(p *Player, body string) *vm {
-	v := &vm{p: p, mem: make([]byte, bodyBase+len(body)), bodyLen: len(body)}
+	v := &vm{player: p, mem: make([]byte, bodyBase+len(body)), bodyLen: len(body)}
 	copy(v.mem[bodyBase:], body)
 	v.sp, v.heap = stackBase, heapBase
 	if len(body) >= 8 {
@@ -122,89 +122,76 @@ func newVM(p *Player, body string) *vm {
 	return v
 }
 
-// stepScript runs the script until it waits, ends or uses up its instruction budget.
-func (p *Player) stepScript(c blob.Cartoon, now uint32) (rendered bool, waitMs int, done bool) {
-	v := p.vm
-	if v == nil {
-		return false, 0, true
-	}
-	for i := 0; i < maxSteps; i++ {
-		if v.phase == 2 || v.failed {
-			return false, 0, true
-		}
-		if wait, yielded := v.exec(now); yielded {
-			return true, p.frameWait(wait), false
-		}
-	}
-	return false, 0, false
-}
-
-func (v *vm) word(addr int) int32 {
-	if addr < 0 || addr+4 > len(v.mem) {
-		v.fail("bad address")
+func (this *vm) word(addr int) int32 {
+	if addr < 0 || addr+4 > len(this.mem) {
+		this.fail("bad address")
 		return 0
 	}
-	return int32(uint32(v.mem[addr]) | uint32(v.mem[addr+1])<<8 | uint32(v.mem[addr+2])<<16 | uint32(v.mem[addr+3])<<24)
+
+	return int32(uint32(this.mem[addr]) | uint32(this.mem[addr+1])<<8 | uint32(this.mem[addr+2])<<16 | uint32(this.mem[addr+3])<<24)
 }
 
-func (v *vm) setWord(addr int, val int32) {
-	if addr < 0 || addr+4 > len(v.mem) {
-		v.fail("bad address")
+func (this *vm) setWord(addr int, val int32) {
+	if addr < 0 || addr+4 > len(this.mem) {
+		this.fail("bad address")
 		return
 	}
-	v.mem[addr], v.mem[addr+1], v.mem[addr+2], v.mem[addr+3] = byte(val), byte(val>>8), byte(val>>16), byte(val>>24)
+
+	this.mem[addr], this.mem[addr+1], this.mem[addr+2], this.mem[addr+3] = byte(val), byte(val>>8), byte(val>>16), byte(val>>24)
 }
 
-func (v *vm) fail(msg string) {
-	if !v.failed {
-		v.failed = true
-		v.p.log("Script error: " + msg)
+func (this *vm) fail(msg string) {
+	if !this.failed {
+		this.failed = true
+		this.player.log("Script error: " + msg)
 	}
 }
 
-func (v *vm) str(addr int32) string {
+func (this *vm) str(addr int32) string {
 	start := int(addr)
-	if start <= 0 || start >= len(v.mem) {
+	if start <= 0 || start >= len(this.mem) {
 		return ""
 	}
+
 	end := start
-	for end < len(v.mem) && v.mem[end] != 0 {
+	for end < len(this.mem) && this.mem[end] != 0 {
 		end++
 	}
-	return string(v.mem[start:end])
+	return string(this.mem[start:end])
 }
 
-func (v *vm) setStr(addr int, s string) {
-	if addr <= 0 || addr+len(s)+1 > len(v.mem) {
-		v.fail("bad string address")
+func (this *vm) setStr(addr int, s string) {
+	if addr <= 0 || addr+len(s)+1 > len(this.mem) {
+		this.fail("bad string address")
 		return
 	}
-	copy(v.mem[addr:], s)
-	v.mem[addr+len(s)] = 0
+
+	copy(this.mem[addr:], s)
+	this.mem[addr+len(s)] = 0
 }
 
 // tempString stores s in one of the rotating temporary buffers and returns its address.
-func (v *vm) tempString(s string) int32 {
+func (this *vm) tempString(s string) int32 {
 	if len(s) >= tempSize {
 		s = s[:tempSize-1]
 	}
-	addr := tempBase + v.temp*tempSize
-	v.temp = (v.temp + 1) % tempBuffers
-	v.setStr(addr, s)
+	addr := tempBase + this.temp*tempSize
+	this.temp = (this.temp + 1) % tempBuffers
+	this.setStr(addr, s)
 	return int32(addr)
 }
 
-func (v *vm) arg(n int) int32 { return v.word(v.sp - 4*n) }
+func (this *vm) arg(n int) int32 { return this.word(this.sp - 4*n) }
 
-func (v *vm) stackOut() {
-	v.fail("Stack Out!")
+func (this *vm) stackOut() {
+	this.fail("Stack Out!")
 }
 
-func (v *vm) dst(useB bool, val int32) {
+func (this *vm) dst(useB bool, val int32) {
 	if useB {
-		v.b = val
+		this.b = val
 	} else {
-		v.a = val
+		this.a = val
 	}
 }
 
@@ -212,223 +199,231 @@ func b2i(b bool) int32 {
 	if b {
 		return 1
 	}
+
 	return 0
 }
 
 // exec runs one instruction; yielded reports a Wait call with its duration.
-func (v *vm) exec(now uint32) (wait int, yielded bool) {
-	ins := uint32(v.word(v.pc))
-	if v.failed {
+func (this *vm) exec(now uint32) (wait int, yielded bool) {
+	ins := uint32(this.word(this.pc))
+	if this.failed {
 		return 0, false
 	}
-	v.pc += 4
+
+	this.pc += 4
 	op, arg := int(ins>>16), int(int16(ins))
 	toB := arg != 0
 	switch op {
 	case opLdrSystemA, opLdrSystemB:
-		v.dst(op == opLdrSystemB, 0)
+		this.dst(op == opLdrSystemB, 0)
 	case opLdrLocalA, opLdrLocalB:
-		v.dst(op == opLdrLocalB, v.word(bodyBase+4*arg))
+		this.dst(op == opLdrLocalB, this.word(bodyBase+4*arg))
 	case opLdrLocalAddA, opLdrLocalAddB:
-		v.dst(op == opLdrLocalAddB, int32(bodyBase+4*arg))
+		this.dst(op == opLdrLocalAddB, int32(bodyBase+4*arg))
 	case opLdrStackBeginA, opLdrStackBeginB:
-		v.dst(op == opLdrStackBeginB, v.word(stackBase+4*arg))
+		this.dst(op == opLdrStackBeginB, this.word(stackBase+4*arg))
 	case opLdrStackEndA, opLdrStackEndB:
-		v.dst(op == opLdrStackEndB, v.word(v.sp+4*arg))
+		this.dst(op == opLdrStackEndB, this.word(this.sp+4*arg))
 	case opStrSystemA:
 	case opStrStackBeginA:
-		v.setWord(stackBase+4*arg, v.a)
+		this.setWord(stackBase+4*arg, this.a)
 	case opStrStackEndA:
-		v.setWord(v.sp+4*arg, v.a)
+		this.setWord(this.sp+4*arg, this.a)
 	case opSwapAB:
-		v.a, v.b = v.b, v.a
+		this.a, this.b = this.b, this.a
 	case opPush:
-		v.sp += 4 * arg
-		if v.sp > stackBase+4*stackWords {
-			v.stackOut()
+		this.sp += 4 * arg
+		if this.sp > stackBase+4*stackWords {
+			this.stackOut()
 		}
 	case opPop:
-		v.sp -= 4 * arg
+		this.sp -= 4 * arg
 	case opPushA:
-		if v.sp >= stackBase+4*stackWords-4 {
-			v.stackOut()
+		if this.sp >= stackBase+4*stackWords-4 {
+			this.stackOut()
 			break
 		}
-		v.setWord(v.sp, v.a)
-		v.sp += 4
+
+		this.setWord(this.sp, this.a)
+		this.sp += 4
 	case opPopA:
-		v.sp -= 4
-		v.a = v.word(v.sp)
+		this.sp -= 4
+		this.a = this.word(this.sp)
 	case opGoto:
-		v.pc += 4 * arg
+		this.pc += 4 * arg
 	case opCallSystem:
-		return v.system(arg, now)
+		return this.system(arg, now)
 	case opCallLocal:
-		if v.sp >= stackBase+4*stackWords {
-			v.stackOut()
+		if this.sp >= stackBase+4*stackWords {
+			this.stackOut()
 			break
 		}
-		v.setWord(v.sp, int32(v.pc))
-		v.sp += 4
-		v.pc = bodyBase + 4*arg
+
+		this.setWord(this.sp, int32(this.pc))
+		this.sp += 4
+		this.pc = bodyBase + 4*arg
 	case opRetFunction:
-		v.sp -= 4
-		v.pc = int(v.word(v.sp))
+		this.sp -= 4
+		this.pc = int(this.word(this.sp))
 	case opRetEvent:
-		if v.phase == 0 && v.onLoop != 0 {
-			v.phase, v.pc = 1, bodyBase+4*v.onLoop
+		if this.phase == 0 && this.onLoop != 0 {
+			this.phase, this.pc = 1, bodyBase+4*this.onLoop
 		} else {
-			v.phase = 2
+			this.phase = 2
 		}
 	case opCreateRef:
-		if v.heap+4*arg > tempBase {
-			v.fail("out of string memory")
+		if this.heap+4*arg > tempBase {
+			this.fail("out of string memory")
 			break
 		}
-		for i := 0; i < arg; i++ {
-			v.setWord(v.heap+4*i, 0)
+
+		for i := range arg {
+			this.setWord(this.heap+4*i, 0)
 		}
-		v.setWord(v.sp, int32(v.heap))
-		v.sp += 4
-		v.heap += 4 * arg
+		this.setWord(this.sp, int32(this.heap))
+		this.sp += 4
+		this.heap += 4 * arg
 	case opDestroyRef:
-		v.heap -= 4 * arg
+		this.heap -= 4 * arg
 	case opMinus:
-		v.dst(toB, -v.a)
+		this.dst(toB, -this.a)
 	case opNot:
-		v.dst(toB, ^v.a)
+		this.dst(toB, ^this.a)
 	case opLogicalNot:
-		v.dst(toB, b2i(v.a == 0))
+		this.dst(toB, b2i(this.a == 0))
 	case opInc:
-		v.dst(toB, v.a+1)
+		this.dst(toB, this.a+1)
 	case opDec:
-		v.dst(toB, v.a-1)
+		this.dst(toB, this.a-1)
 	case opAdd:
-		v.dst(toB, v.a+v.b)
+		this.dst(toB, this.a+this.b)
 	case opSub:
-		v.dst(toB, v.a-v.b)
+		this.dst(toB, this.a-this.b)
 	case opMul:
-		v.dst(toB, v.a*v.b)
+		this.dst(toB, this.a*this.b)
 	case opDiv, opMod:
-		if v.b == 0 {
-			v.fail("division by zero")
+		if this.b == 0 {
+			this.fail("division by zero")
 			break
 		}
+
 		if op == opDiv {
-			v.dst(toB, v.a/v.b)
+			this.dst(toB, this.a/this.b)
 		} else {
-			v.dst(toB, v.a%v.b)
+			this.dst(toB, this.a%this.b)
 		}
 	case opShl:
-		v.dst(toB, v.a<<(uint32(v.b)&31))
+		this.dst(toB, this.a<<(uint32(this.b)&31))
 	case opShr:
-		v.dst(toB, v.a>>(uint32(v.b)&31))
+		this.dst(toB, this.a>>(uint32(this.b)&31))
 	case opAnd:
-		v.dst(toB, v.a&v.b)
+		this.dst(toB, this.a&this.b)
 	case opOr:
-		v.dst(toB, v.a|v.b)
+		this.dst(toB, this.a|this.b)
 	case opXor:
-		v.dst(toB, v.a^v.b)
+		this.dst(toB, this.a^this.b)
 	case opEq:
-		v.dst(toB, b2i(v.a == v.b))
+		this.dst(toB, b2i(this.a == this.b))
 	case opNe:
-		v.dst(toB, b2i(v.a != v.b))
+		this.dst(toB, b2i(this.a != this.b))
 	case opLogicalAnd:
-		v.dst(toB, b2i(v.a != 0 && v.b != 0))
+		this.dst(toB, b2i(this.a != 0 && this.b != 0))
 	case opLogicalOr:
-		v.dst(toB, b2i(v.a != 0 || v.b != 0))
+		this.dst(toB, b2i(this.a != 0 || this.b != 0))
 	case opGt:
-		v.dst(toB, b2i(v.a > v.b))
+		this.dst(toB, b2i(this.a > this.b))
 	case opGe:
-		v.dst(toB, b2i(v.a >= v.b))
+		this.dst(toB, b2i(this.a >= this.b))
 	case opLt:
-		v.dst(toB, b2i(v.a < v.b))
+		this.dst(toB, b2i(this.a < this.b))
 	case opLe:
-		v.dst(toB, b2i(v.a <= v.b))
+		this.dst(toB, b2i(this.a <= this.b))
 	case opCopy:
-		for i := 0; i < arg; i++ {
-			v.setWord(int(v.a)+4*i, v.word(int(v.b)+4*i))
+		for i := range arg {
+			this.setWord(int(this.a)+4*i, this.word(int(this.b)+4*i))
 		}
 	case opCopyStr:
-		v.setStr(int(v.a), v.str(v.b))
+		this.setStr(int(this.a), this.str(this.b))
 	case opCat:
-		s := v.tempString(v.str(v.a) + v.str(v.b))
-		v.dst(toB, s)
+		s := this.tempString(this.str(this.a) + this.str(this.b))
+		this.dst(toB, s)
 	case opJz:
-		if v.a == 0 {
-			v.pc += 4 * arg
+		if this.a == 0 {
+			this.pc += 4 * arg
 		}
 	case opJnz:
-		if v.a != 0 {
-			v.pc += 4 * arg
+		if this.a != 0 {
+			this.pc += 4 * arg
 		}
 	}
 	return 0, false
 }
 
-func (v *vm) system(fn int, now uint32) (int, bool) {
-	p := v.p
+func (this *vm) system(fn int, now uint32) (int, bool) {
+	p := this.player
 	switch fn {
 	case sysTraceN:
-		p.log(v.str(v.arg(1)))
+		p.log(this.str(this.arg(1)))
 	case sysString:
-		v.a = v.tempString(strconv.Itoa(int(v.arg(1))))
+		this.a = this.tempString(strconv.Itoa(int(this.arg(1))))
 	case sysWait:
-		return int(v.arg(1)), true
+		return int(this.arg(1)), true
 	case sysClean:
-		p.canvas.Clear(byte(v.arg(1)))
+		p.canvas.Clear(byte(this.arg(1)))
 	case sysPoint:
-		p.canvas.Point(int(v.arg(1)), int(v.arg(2)), int(v.arg(3)), byte(v.arg(4)), int(v.arg(5)))
+		p.canvas.Point(int(this.arg(1)), int(this.arg(2)), int(this.arg(3)), byte(this.arg(4)), int(this.arg(5)))
 	case sysLine:
-		p.canvas.Line(int(v.arg(1)), int(v.arg(2)), int(v.arg(3)), int(v.arg(4)), int(v.arg(5)), int(v.arg(6)),
-			byte(v.arg(7)), int(v.arg(8)))
+		p.canvas.Line(int(this.arg(1)), int(this.arg(2)), int(this.arg(3)), int(this.arg(4)), int(this.arg(5)), int(this.arg(6)),
+			byte(this.arg(7)), int(this.arg(8)))
 	case sysGraph:
-		g, ok := p.assets.graph(v.str(v.arg(1)))
+		g, ok := p.assets.graph(this.str(this.arg(1)))
 		if !ok {
 			break
 		}
-		pal, ok := p.assets.palette(v.str(v.arg(2)))
+
+		pal, ok := p.assets.palette(this.str(this.arg(2)))
 		if !ok {
 			break
 		}
-		p.canvas.Graph(g, pal, int(v.arg(3)), int(v.arg(4)), int(v.arg(5)), int(v.arg(6)), int(v.arg(7)), int(v.arg(8)))
+
+		p.canvas.Graph(g, pal, int(this.arg(3)), int(this.arg(4)), int(this.arg(5)), int(this.arg(6)), int(this.arg(7)), int(this.arg(8)))
 	case sysGetIndex:
-		v.a = 0
-		if idx, ok := p.assets.index(v.str(v.arg(1))); ok {
-			v.a = int32(blob.IndexValue(idx, int(v.arg(2)), int(v.arg(3))))
+		this.a = 0
+		if idx, ok := p.assets.index(this.str(this.arg(1))); ok {
+			this.a = int32(blob.IndexValue(idx, int(this.arg(2)), int(this.arg(3))))
 		}
 	case sysGetRandomColor:
-		v.a = int32(p.randomColor())
+		this.a = int32(p.randomColor())
 	case sysGetTick:
-		v.a = int32(now)
+		this.a = int32(now)
 	case sysGetAdc, sysGetRealAdc:
-		v.a = 0
+		this.a = 0
 		if p.ADC != nil {
-			v.a = int32(p.ADC(int(v.arg(1)), fn == sysGetRealAdc))
+			this.a = int32(p.ADC(int(this.arg(1)), fn == sysGetRealAdc))
 		}
 	case sysEnabledKey:
 		p.capturedKey = 0
-		p.keyCapture = v.arg(1) != 0
+		p.keyCapture = this.arg(1) != 0
 	case sysGetKey:
-		v.a = int32(p.capturedKey)
+		this.a = int32(p.capturedKey)
 		p.capturedKey = 0
 	}
 	return 0, false
 }
 
 // randomColor steps through the vendor's fixed 31-color cycle.
-func (p *Player) randomColor() byte {
-	p.colorStep++
-	if p.colorStep > 30 {
-		p.colorStep = 0
+func (this *Player) randomColor() byte {
+	this.colorStep++
+	if this.colorStep > 30 {
+		this.colorStep = 0
 	}
-	u := p.colorStep + 1
+	u := this.colorStep + 1
 	if u < 29 {
 		if u > 23 {
-			u = p.colorStep + 3
+			u = this.colorStep + 3
 		}
 	} else {
-		u = p.colorStep + 4
+		u = this.colorStep + 4
 	}
 	r := u % 4
 	switch u / 4 {
