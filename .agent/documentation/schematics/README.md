@@ -48,7 +48,7 @@ Status legend: **[seen]** = read directly from the rendered image, **[?]** = nee
 
 ---
 
-## Base board `3D16RGB` (the one you said you have) [seen: page 1, page 2]
+## Base board `3D16RGB` (the pin map matches your base; the LED chain doesn't) [seen: page 1, page 2]
 
 ### Functions on U26
 
@@ -89,7 +89,7 @@ Status legend: **[seen]** = read directly from the rendered image, **[?]** = nee
   `SPI1_MOSI → U33 → U34 → … → U12 → SPI_REDOUT` (page 2, **red**, T1..T256),
   then page 3 (green, T257..T512), then page 4 (blue, T513..T768), and finally `SPI1_MISO`.
 - 3 × 16 chips × 16 outputs = 768 outputs, which is 256 RGB columns, i.e. a **16 × 16 footprint**.
-- ⚠ **Open question:** the current Go code shifts 24 bytes per layer (192 bits = 12 chips = 8 × 8 × 3). That matches a populated 8×8 base, not the full 3D16RGB chain shown here. On the real board: how many MBI5024 chips are fitted, and which T-pads are the 8×8 LEDs soldered to?
+- ✅ **Resolved:** your base has **12** MBI5024 chips (192 outputs = 8×8×RGB, 24 bytes/layer, as in the code), all 8 buttons (KEY1–7 + RESET) and 32 layer pads. It is a revision in between this sheet and `8X8X8RGB`. See [../../investigation/hardware.md](../../investigation/hardware.md).
 
 ---
 
