@@ -18,6 +18,7 @@ For the schematic-level pin map see [../documentation/schematics/README.md](../d
 - Layer anode pads **1–32**: up to 32 layers through two 74HC154 (154EN = PA8 for layers 1–16, 154EN2 = PC7 for 17–32), plus P-MOSFETs. Only layers 1–8 are fitted on your cube.
 - Power: **USB Type-C** ("8x8x8 5V 3A", "8x8x32 5V 7A" pads), large electrolytics, a "TEST LED" header.
 - **Keys** (silkscreen): KEY1 *Previous*, KEY2 *Next*, KEY3 *Speed+*, KEY4 *Speed−*, KEY5 *Run/Pause*, KEY6 *Cycle*, KEY7 *ON/OFF*, plus **RESET**. "The button function can be modified in the 3D software."
+- SW3 (PA15) / SW4 (PA12) are not reachable on this base and read low (ON). The original firmware reads them only to print `Config1 %d Config2 %d` at boot (`FUN_08009d9c`, bit0 = PA15 low, bit1 = PA12 low). Config1 is SW1/SW2 the same way (`FUN_08009d5c`).
 - **DIP switch (SW1–SW4)**. SW1/SW2 select the effect group, applied after RESET:
 
   | SW1 | SW2 | Group | Function |

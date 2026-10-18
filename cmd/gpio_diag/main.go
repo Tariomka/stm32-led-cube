@@ -33,7 +33,7 @@ func main() {
 		component.NewInputPin(in.pin)
 	}
 	dump("3. workaround on all inputs, SWJ still enabled (expect all inputs 1000)")
-	println("   press KEY5 / KEY6 within 5 s (they should NOT react while SWJ is enabled)")
+	println("   press KEY5 / KEY6 within 5 s (KEY5 stuck low by the SWCLK pull-down, KEY6 works via the SWDIO pull-up)")
 	watch(5 * time.Second)
 
 	component.DisableDebugPort()
@@ -54,7 +54,7 @@ func watch(d time.Duration) {
 		}
 		if state != last {
 			last = state
-			print("   low:")
+			print("   low (key pressed / switch ON):")
 			for i, in := range inputs {
 				if state&(1<<i) != 0 {
 					print(" [", in.name, "]")

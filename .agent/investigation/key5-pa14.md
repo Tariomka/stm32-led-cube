@@ -1,6 +1,8 @@
 # KEY5 (PA14) investigation
 
-Status: **root cause found by static analysis, workaround implemented** (`internal/component/pin.go`: `NewInputPin` = pull-down config + `High()`, `DisableDebugPort` = SWJ_CFG 100). It still needs hardware confirmation: `scripts\build.cmd ./cmd/gpio_diag`, then `scripts\flash.cmd COM4 bin\main.hex` (passing the file skips the rebuild), then `scripts\monitor.cmd`.
+Hardware result: `gpio_diag` and the firmware confirm the fix. All keys work alone and combined after SWJ is disabled. While SWJ is still enabled, KEY6 (PA13) works and KEY5 (PA14) is dead: the debug port forces its own pulls (SWDIO pull-up, SWCLK pull-down) over the GPIO config, and IDR still samples the pin.
+
+Status: **fixed and confirmed on hardware** (`internal/component/pin.go`: `NewInputPin` = pull-down config + `High()`, `DisableDebugPort` = SWJ_CFG 100). Re-run: `scripts\build.cmd ./cmd/gpio_diag`, then `scripts\flash.cmd COM4 bin\main.hex`, then `scripts\monitor.cmd`.
 
 ## TL;DR
 
