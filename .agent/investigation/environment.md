@@ -8,11 +8,11 @@ Checked 2026-10-18.
 | Go | ✅ 1.27.2 (`C:\Program Files\Go`) | |
 | OpenOCD | ✅ 0.12.0 (scoop) | Only useful with an SWD probe (ST-Link) |
 | 7zip | ✅ (scoop) | |
-| GNU make | ❌ | `Makefile` is unusable as is. It also uses `cmd /C date`, `if [ ! -d ]` (POSIX) and `-size full` |
-| STM32CubeProgrammer | ❌ | Needed for the UART bootloader path, or use `stm32flash` instead |
-| stm32flash | ❌ | Open-source alternative for the UART bootloader |
-| USB-UART driver | ? | Depends on the adapter (CH340 / CP210x / FTDI). The only serial port now is Intel AMT SOL `COM3` |
-| Ghidra + JDK 21 | ❌ | Needed to reverse-engineer the vendor app |
+| GNU make | ❌ (by choice) | Helper scripts will be `.cmd` files instead |
+| STM32CubeProgrammer | ✅ v2.23.0 | UART bootloader on **COM4**. See [../documentation/flashing-and-dumping.md](../documentation/flashing-and-dumping.md) |
+| USB-UART adapter | ✅ | Shows up as COM4 |
+| Ghidra + JDK 21 | ✅ (scoop) | For `Simulator.dll` and the firmware |
+| ILSpy | ❌ | Needed for the .NET PC software (you install it) |
 | Python | ❌ | Not needed. Helper tools will be written in Go or PowerShell |
 
 ## Build

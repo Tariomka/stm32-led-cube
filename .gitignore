@@ -32,4 +32,5 @@ go.work.sum
 
 # Exclude specific files
 .agent/external
+.agent/photos
 !firmware/*

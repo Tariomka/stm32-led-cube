@@ -1,73 +1,88 @@
 # Original iCubeSmart firmware: what we have
 
-## Files in `firmware/`
+## ✅ Complete original image secured (2026-10-18)
 
-| File | Range | Size | What it is |
-|---|---|---|---|
-| `Start.hex` | `0x08000000–0x0800481F` | 18 464 B | **IAP bootloader** "IAP version: 2.10 / Create By Fan" |
-| `Update.hex` | `0x08006000–0x08012D7F` | 52 608 B | **Application** (first part only, see below) |
-| `ICubeSmart_Dump.hex` | `0x08000000–0x08013FFF` | 81 920 B | Byte-identical to `Start.hex` + `Update.hex`, padded with `0xFF` |
+| Source | Content |
+|---|---|
+| `firmware/FullDump_512K.bin` (SHA-256 `057B70BE…6804`) | Full flash read **before** the TinyGo write: IAP + complete app |
+| `.agent/external/3D Software - RGB Cube/1-3D8RGB-Demo-20250128.hex` | Vendor `update.hex` for this cube. **Byte-identical to the app in the dump** |
+| `firmware/Start.hex` | IAP bootloader only |
+| `firmware/Update.hex`, `firmware/ICubeSmart_Dump.hex` | ⚠ Truncated copies (first app segment only). Superseded |
 
-## ⚠ The application is incomplete
+Proof that the vendor hex is exactly what was on the chip:
+- The IAP descriptor at `0x08004800` = `89762314` (magic), `0x08006000` (app address), MD5 `2D8075470D9E5FF90862F60100FFDD9C`, size `0x00037999`.
+- The MD5 and size are those of the **`.hex` text file** that the IAP reads from SD. `1-3D8RGB-Demo-20250128.hex` is 227 737 B (`0x37999`) and its MD5 is `2D8075…DD9C`. Match.
+- The app regions of that hex and of the dump: 0 byte differences.
 
-- The app vector table at `0x08006000` points far beyond the end of the dump:
-  - Reset handler `0x08006415`. Its literal pool calls `SystemInit` at **`0x08036769`**, then `__main` at `0x08006131`.
-  - NMI `0x080336CD`, HardFault `0x08032CD1`, most IRQ handlers at `0x08032xxx–0x08037xxx`.
-- The IAP keeps an image descriptor at `0x08004800`:
-  - `89 76 23 14` (magic?)
-  - `00 60 00 08` = app address `0x08006000`
-  - 16 bytes at `0x08004808` (MD5 of the app, passed to the IAP's MD5 check)
-  - `99 79 03 00` at `0x08004818`, so **size = `0x00037999`** (227 737 B). The full app therefore spans `0x08006000–0x0803D998`.
-- So `Update.hex` and the dump contain only about 23 % of the application. Missing are the startup code, clock/peripheral drivers, interrupt handlers, and probably more animation data.
-- The dump stopping at exactly `0x14000` (80 KB) looks like a read-size setting in the tool that made it.
+> Correction to an earlier note: `0x37999` is the hex-file size, not the binary size. The app does **not** extend to `0x0803D999`.
 
-### Recovering the rest
-
-1. **Best: dump the whole 512 KB from the chip** (see [../documentation/flashing-and-dumping.md](../documentation/flashing-and-dumping.md)).
-   - If you only ever erased the sectors you programmed (CubeProgrammer's default), the region from `0x08032000` up is probably still intact. Your TinyGo builds are about 50 KB, so they only overwrite `0x08000000–0x0800C7FF`.
-   - **Do this before flashing anything else.**
-2. Ask the vendor again for the *complete* `update.hex`. It should cover about 227 KB of binary.
-3. Fallback reference: Sliicy's repo has `Firmware/RGB/Original Firmware 8x8x8 RGB Cube.hex`.
-   - It is a **different (older?) build**, at `0x08006000–0x0801110F` + `0x08032100–0x08037863`, with one malformed record at `0x08011100`.
-   - It has the same structure: app code + data low, library code high from `0x08032100`. It can't be stitched into ours (addresses differ), but it is a complete second sample for reverse engineering.
-
-## Memory layout of the original product
+## Flash layout of the original product
 
 ```text
-0x08000000  IAP bootloader (Start.hex)          ~18 KB
-0x08004800  IAP image descriptor (magic, app address, MD5, size)
-0x08006000  App vector table, app code (~20 KB), then animation data ("Cartoon" scripts, patterns)
-   ...
-0x08032100  Library / drivers / startup (by analogy with the Sliicy build)
-0x0803D999  End of app (per IAP descriptor)
-RAM: SP init 0x2000F3C0, so it uses almost all 64 KB of SRAM
+0x08000000–0x080045FF  IAP bootloader "IAP 2.10, Create By Fan" (SD update.hex + UART update)
+0x08004800–0x0800481B  IAP descriptor (magic, app addr, MD5 + size of update.hex)
+0x08006000–0x08012D63  App vector table + app code (~20 KB) + COMPILED SHOW DATA (from ~0x0800B000)
+0x08032100–0x08038FC3  Firmware library part: startup (SystemInit @0x08036768), drivers, IRQ handlers, ...
+RAM: initial SP 0x2000F3C0, i.e. uses ~62 KB of the 64 KB SRAM
 ```
 
-The IAP:
-- Prints a banner on UART1.
-- Mounts the SD card (FAT), looks for `update.hex`, and compares its MD5 against the stored one ("Md5 the same!"). Otherwise it reflashes the app ("Start SD Update!").
-- Then sets `VTOR = 0x08006000` and jumps to the app.
+The hex has two parts: the fixed firmware **head and tail**, with the **compiled show data** in between. That matches how the PC software builds it (next section).
 
-## What the app does (from strings in the dump)
+## Key discovery: the PC "3D Software" generates the firmware
 
-| Area | Evidence (strings) | Notes |
-|---|---|---|
-| Animation engine | `Cartoon End`, `Change Cartoon %d`, `Replay Cartoon`, `Run x=%d,y=%d,z=%d,dir=%d,type=%d`, `Warn: Pos > Cubes`, `SetData error!` | Data-driven: scripts reference named **patterns** and **color series** and move them around |
-| Pattern names | `cubeamp1..4`, `Circle1..5`, `Circle-2..5`, `waterfall1/2`, `rain1/2`, `square1..6`, `Arrows5`, `TurnRight1/2`, `Fly_1..4`, `Wave1/2`, `frame1..4`, `HELLO`, `HelloiCube`, `happyB`, `B/G/R-CUBE`, `4strip`, `vertical8dot`, `crosswise8dot`, `8x8test`, `meteor`, `AllAround`, `TwoSide`, `Demo-Text`, ... | Bitmaps live next to their names (`~BBBB~`-style 8×8 glyph bytes are visible) |
-| Colors | `green, yellow, purple, white, red`, `red/green/blue/yellow/cyan/RGB-series` | Implies several brightness levels per color, i.e. **PWM/BAM color depth** |
-| Audio | `AudioG1`, `AudioG2`, `Wave1/2` | Mic on PA0 (ADC). DIP group 2 = "Audio Effects" |
-| Buttons | `Previous Cartoon`, `Next Cartoon`, `Add speed to %.2f`, `Sub speed to %.2f`, `Speed reset to %.2f`, `Play Model=%d`, `Display off=%d` | Matches the KEY1–KEY7 silkscreen |
-| Cube types | `8x8x8A`, `8x8x8B`, `8x16x8A`, `161616A/B/C`, `8x32x8A/B`, `Config1=%d,Config2=%d`, `DeviceType:%d,DeviceNum:%d` | One firmware for many bases. Your base is "8x8x" with 8/16/32 layer options |
-| Settings store ("Regedit") | `Clean Regedit OK!`, `Delete Regedit:%s OK!`, `ReadReg:%s=%s`, `WriteReg:%s OK!`, `Regedit Count = %d`, `Regedit format error!`, `Commands explain:` | Key/value store, most likely in the 24C02 EEPROM, editable over the UART console. "The button function can be modified in the 3D software" probably goes through this |
-| Debug console | `ReadMemery End!`, `Address=0x%.8X,offset=%d,count=%d`, `IRQ:%s`, `Error Bus!`, `Error: Stack Out!` | Text command shell on UART |
-| Misc | `tickTimer`, `DisplayAdd=0x%.8X` | |
+`.agent/external/3D Software - RGB Cube/` contains:
+
+| File | What it is |
+|---|---|
+| `3D Software - RGB.exe` | .NET 4 WinForms app (assembly `3D_Guan` v2.2.1.0, x86). Show editor, script compiler, **firmware generator** |
+| `Simulator.dll` | **Native x86 DLL. Most likely the firmware's show engine compiled for the PC.** Exports: `SetCartoon`, `RunCartoon`, `EndCartoon`, `DoKeyFunction`, `DoKey1..7`, `GetCube`, `AddCube`, `CleanCube`, `SetGraphFun`, `DrawBallFun`, `DrawTitleFun`, `GetSourcePath`, `GetKeyChar`, `GetBuff`, `Test` |
+| `*.gc` | Show projects (.NET `BinaryFormatter` of `_3D_Guan.Cartoon…` objects). `1-3D8RGB-Demo-20250128.gc` is the source of our cube's shows |
+| `*.hex` | Ready firmware per cube type (3D8RGB, 8X8X32RGB, 3D16RGB, 3D16S/MINI, 3D8P) |
+| `Download Software.exe` | .NET "STM32 Debug Tool v2.2". Serial console + uploads `Update.hex` to the IAP (sends `reboot`, then streams the hex) |
+| `Downloader Driver/ch341ser.exe` | CH340 USB-serial driver |
+| `3D Software Instructions -RGB Cube-English.pdf` | User manual (not yet read) |
+
+### What reflection tells us about the PC app (metadata only, nothing executed)
+
+- **Show model:**
+  - `Cartoon` (types `Normal`, `Script`, `Audio`) is made of `CartoonFrames`, which hold `FrameElement`s.
+  - Element types: `SetGraph` (a graph/bitmap at x,y,z with `RotateAxis` + angle), `DrawBall` (center, radius, in/out color, hollow), `TitleStyle` (scrolling text with `PlayStyle`).
+  - Resources: `GraphData` (3-D bitmaps), `PaletteData` (colors), `IndexData` (index tables).
+  - `CartoonConfig` has `m_key1..m_key7` (configurable key functions) and `m_disp`.
+- **Cube types:** `T_8_8_8`, `T_8_16_8`, `T_16_16_16`, `T_8_32_8`.
+- **Graph compression** (`Compile.Compress`): `NoCompress`, `Normal_2/4/8`, `Continue_2/4/8` (palette + RLE-style codecs with 2/4/8-bit indices).
+- **Script language** compiled to a **stack VM bytecode** (`CompileScript.CommandElement.ElementType`):
+  `LDR_SYSTEM/GLOBAL/LOCAL(_ADD)_A/B`, `LDR_STACK_BEGIN/END`, `STR_*`, `SWAP_A_B`, `PUSH/POP(_A)`, `GOTO`, `CALL_BEFORE/SYSTEM/GLOBAL/LOCAL`, `RET_FUNCTION/EVENT`, `CREATE_REF/DESTORY_REF`, arithmetic/logic ops (`minus … small_e_then` = 32–54), `COPY`, `COPY_STR`, `CAT`, `JZ`, `JNZ`.
+- **Firmware build:**
+  - `Compile.CompileAllToArray` produces the data blob.
+  - `PaddingHex(bytes, head, tail)` + `ParseHexHeadAndTail` merge it into the firmware hex template.
+  - `CompileFirmware` writes the `.hex`.
+
+### Consequences for the port
+
+1. The firmware is a **generic show engine + interpreter**, and all "premade light shows" are **data** in one blob.
+   - Porting = re-implementing the engine (the data decoder, the frame/element renderer, the script VM, audio mode, keys) in Go, then embedding the **original blob unchanged**.
+   - Every original show then runs as is, and new shows made in the PC app can be dropped in too.
+2. `Simulator.dll` is the best RE target. It is x86 (much nicer decompilation than Thumb), has named exports, and is likely built from the same C source. It also gives an **executable oracle**: a Windows/386 Go test harness can load the DLL, feed it the blob, step it, read frames with `GetCube`, and compare them frame by frame with our Go engine.
+3. The PC app (.NET) can be decompiled to C# with ILSpy. That gives the exact **blob format writer**, the **compression codecs** and the **bytecode compiler**, so the formats don't have to be guessed.
+
+## Strings in the app (engine features)
+
+| Area | Strings |
+|---|---|
+| Show engine | `Cartoon End`, `Change Cartoon %d`, `Replay Cartoon`, `Run x=%d,y=%d,z=%d,dir=%d,type=%d`, `Warn: Pos > Cubes`, `SetData error!` |
+| Resource names (data blob) | `cubeamp1..4`, `Circle1..5`, `waterfall1/2`, `rain1/2`, `square1..6`, `Fly_1..4`, `Wave1/2`, `AudioG1/2`, `HELLO`, `HelloiCube`, `Demo-Text`, … plus color series `red-/green-/blue-/yellow-/cyan-/RGB-series` |
+| Keys | `Previous Cartoon`, `Next Cartoon`, `Add/Sub speed to %.2f`, `Speed reset to %.2f`, `Play Model=%d`, `Display off=%d` |
+| Cube config | `8x8x8A/B`, `8x16x8A`, `161616A/B/C`, `8x32x8A/B`, `Config1=%d,Config2=%d`, `DeviceType:%d,DeviceNum:%d` |
+| Settings (24C02) | `Regedit …`, `ReadReg/WriteReg/DelReg`, `Commands explain:` (UART console) |
+| Misc | `tickTimer`, `DisplayAdd=0x%.8X`, `IRQ:%s`, `Error Bus!`, `Error: Stack Out!` (the VM's stack check) |
 
 ## Existing decompilations in `tmp/decompiled/`
 
-| File | What it actually is | Useful? |
-|---|---|---|
-| `simplified.c` | Decoded as **RISC-V** (registers `fa0`, `s0`, ...), i.e. wrong architecture | ❌ Discard |
-| `iCubeSmart.c` | Correct ARM decompile of the **IAP bootloader** (SDIO, FLASH, FAT, banner strings) | Only for the IAP |
-| `stm32_cube.c` | Decompile of **your own TinyGo build** (TinyGo panic strings, PA14 print code) | ✅ It's what proved the KEY5 bug. Not the vendor app |
+| File | What it actually is |
+|---|---|
+| `simplified.c` | Wrong architecture (RISC-V). ❌ Discard |
+| `iCubeSmart.c` | IAP bootloader (ARM) |
+| `stm32_cube.c` | **Your own TinyGo build.** It proved the KEY5 bug |
 
-So **the vendor app has never been decompiled yet.** Plan: Ghidra (ARM Cortex-M Thumb, LE), image base `0x08006000`, plus a peripheral map. See [../plan/porting-plan.md](../plan/porting-plan.md).
+The vendor app and `Simulator.dll` have not been decompiled yet. That is Phase 1 of the porting plan.

@@ -1,40 +1,48 @@
-# What I need from you (tomorrow)
+# What I need from you
 
-## Hardware to bring / have on the desk
+## Done ✅
 
-- [ ] The cube (base + core board) and a **Type-C cable** for power.
-- [ ] **USB-UART adapter**, 3.3 V logic (CH340 / CP2102 / FT232). Bonus if it has **DTR/RTS** pins (for the no-jumper workflow).
-- [ ] A **jumper cap** for BOOT0 (or a female-female wire).
-- [ ] A few female-female Dupont wires.
-- [ ] *If you have one:* **ST-Link V2** (clone is fine). Gives fast dumps, real debugging, and no BOOT0 juggling.
-- [ ] *If you have one:* a cheap **logic analyzer** (24 MHz / 8 ch "Saleae clone"). Lets us capture the original scan timing.
-- [ ] *If you have it:* the iCubeSmart **PC "3D software"**, or a link to it.
+- Full 512 KB dump (`firmware/FullDump_512K.bin`). It is complete and matches the vendor hex.
+- Installed: STM32CubeProgrammer, Ghidra, JDK 21. Port: **COM4**.
+- PC "3D Software" in `.agent/external/`.
+- Decisions:
+  - our firmware owns the whole flash
+  - vendor data may be committed (you commit)
+  - port **all** original features
+  - keep the Pico/desktop integration
+  - no make (use `.cmd`)
+  - no installs by the agent
 
-## Software (I can install these myself if you say OK)
+## Still needed
 
-| What | Why | How |
-|---|---|---|
-| USB-UART driver | COM port for the adapter | Usually automatic. CH340: WCH driver |
-| **stm32flash** or **STM32CubeProgrammer** | UART bootloader read/write | stm32flash: single exe (open source). CubeProgrammer: installer from st.com (needs an ST account) |
-| Ghidra + JDK 21 | Reverse-engineer the vendor app | `scoop bucket add extras; scoop bucket add java; scoop install temurin21-jdk ghidra` |
-| (optional) GNU make | Keep using the `Makefile` | `scoop install make` (the Makefile needs Windows fixes anyway) |
+### 1. Install ILSpy (for the .NET PC software)
 
-## Order of operations (about 1 hour)
+Either the GUI (ILSpy from its GitHub releases, or `winget install icsharpcode.ILSpy`) or the CLI (`dotnet tool install -g ilspycmd`, which needs the .NET SDK). Then decompile:
+- `3D Software - RGB.exe`
+- `Download Software.exe`
 
-1. **Unplug the Pico W** from the core board's GND/TXD/RXD/+5V header, and plug the USB-UART adapter in instead. Tell me which **COM port** appears.
-2. **Full flash dump** (BOOT0 jumper + Reset, then read 512 KB twice + option bytes). **Nothing gets written before this.**
-3. I analyze the dump (a few minutes). Then either:
-   - flash the complete original and record its behavior (console log, videos per DIP group, key behavior), or
-   - skip that if the second half is gone.
-4. KEY5 experiments E1–E4 (each is a build + flash + read the console).
-5. Quick hardware checks:
-   - Does the base's Type-C show up as a COM port?
-   - Is there an SD slot on the back of the core board?
-   - "Walk one LED" test to confirm the bit/LED order.
+Output goes to `.agent/external/decompiled/<name>/`:
+- GUI: *File → Open*, select the assembly, then *File → Save Code…* (saves as a C# project).
+- CLI: `ilspycmd -p -o ".agent\external\decompiled\3D_Guan" ".agent\external\3D Software - RGB Cube\3D Software - RGB.exe"`
 
-## Decisions I need from you (any time)
+This gives the exact data-blob format, the graph codecs and the script compiler. It's the biggest shortcut for the port.
 
-1. **Keep the vendor IAP bootloader** at `0x08000000`, with our app at `0x08006000`? Or replace everything with our app from `0x08000000` (simpler, as now)?
-2. **Public repo vs vendor data:** commit the extracted animation data and fonts, or keep them local/generated?
-3. **Scope:** which original features matter to you? All four DIP groups? IR remote? PC "3D software" protocol compatibility? Cascade?
-4. Is it OK for me to touch `.vscode/settings.json` (`go.terminal.activateEnvironment: false`) and replace or fix the `Makefile` for Windows?
+### 2. Permission to run Ghidra headless myself
+
+Running installed tools isn't installing. I'd run `analyzeHeadless` from the scoop install, with a small export script under `.agent/tools/ghidra/`, on `Simulator.dll` and the firmware. Output goes to `.agent/re/`. Is that OK?
+
+### 3. Quick hardware answers (next time the cube is on the desk)
+
+- [ ] Plug **only** the base's Type-C into the PC. Does a new COM port appear? The vendor ships a CH340 driver, so the base may have USB-serial.
+- [ ] Is there an SD-card slot on the back of the core board?
+- [ ] Record the original behavior once. Flash `FullDump_512K.bin` back with the restore command in [flashing-and-dumping.md](flashing-and-dumping.md), then:
+  - Save the UART console log at boot (`tinygo monitor -port COM4 -baudrate 115200`; if it's garbage, try 9600/57600/921600).
+  - Send `help`, or just Enter, and save the output.
+  - Take a short video per DIP group (11 / 01 / 10 / 00).
+  - Note what each key does.
+- [ ] Then flash the KEY5 experiment builds (E1–E4). I'll prepare them as `scripts\*.cmd` targets.
+
+### 4. Later / optional
+
+- ST-Link (we'll debug it together some day).
+- Logic analyzer (exact scan timing of the original).
