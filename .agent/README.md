@@ -17,6 +17,7 @@ Notes, plans and reference material for:
 
 ## Index
 
+- **Start here next session:** [carry_forward.md](carry_forward.md)
 - **Plans**
   - [plan/key5-fix-plan.md](plan/key5-fix-plan.md)
   - [plan/porting-plan.md](plan/porting-plan.md)
