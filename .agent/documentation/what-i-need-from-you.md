@@ -13,25 +13,13 @@
   - no make (use `.cmd`)
   - no installs by the agent
 
+- Decompiled C# of the PC software in `.agent/external/decompiled/`.
+- Ghidra permission (used: decompiles in `.agent/external/re/`).
+- `.agent/external` and `.agent/photos` are gitignored.
+
 ## Still needed
 
-### 1. Install ILSpy (for the .NET PC software)
-
-Either the GUI (ILSpy from its GitHub releases, or `winget install icsharpcode.ILSpy`) or the CLI (`dotnet tool install -g ilspycmd`, which needs the .NET SDK). Then decompile:
-- `3D Software - RGB.exe`
-- `Download Software.exe`
-
-Output goes to `.agent/external/decompiled/<name>/`:
-- GUI: *File → Open*, select the assembly, then *File → Save Code…* (saves as a C# project).
-- CLI: `ilspycmd -p -o ".agent\external\decompiled\3D_Guan" ".agent\external\3D Software - RGB Cube\3D Software - RGB.exe"`
-
-This gives the exact data-blob format, the graph codecs and the script compiler. It's the biggest shortcut for the port.
-
-### 2. Permission to run Ghidra headless myself
-
-Running installed tools isn't installing. I'd run `analyzeHeadless` from the scoop install, with a small export script under `.agent/tools/ghidra/`, on `Simulator.dll` and the firmware. Output goes to `.agent/re/`. Is that OK?
-
-### 3. Quick hardware answers (next time the cube is on the desk)
+### 1. Hardware session (when the cube is back on the desk)
 
 - [ ] Plug **only** the base's Type-C into the PC. Does a new COM port appear? The vendor ships a CH340 driver, so the base may have USB-serial.
 - [ ] Is there an SD-card slot on the back of the core board?
@@ -42,7 +30,16 @@ Running installed tools isn't installing. I'd run `analyzeHeadless` from the sco
   - Note what each key does.
 - [ ] Then flash the KEY5 experiment builds (E1–E4). I'll prepare them as `scripts\*.cmd` targets.
 
-### 4. Later / optional
+### 2. Later / optional
 
 - ST-Link (we'll debug it together some day).
 - Logic analyzer (exact scan timing of the original).
+
+### 3. Decision: may I start writing code?
+
+The next steps are code, not docs. Nothing gets staged or committed by me.
+- Host-side Go packages for the engine (`internal/engine/...`, testable with `go test`)
+- The custom TinyGo target
+- `scripts\*.cmd`
+- The KEY5 fix
+- An oracle test harness that loads `Simulator.dll` (windows/386)

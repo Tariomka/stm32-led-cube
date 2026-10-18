@@ -37,7 +37,7 @@ Ground truth comes from three sources, in order of usefulness:
 
 | Source | Gives | Tool |
 |---|---|---|
-| `3D Software - RGB.exe` (.NET) | Exact blob writer, compression codecs, script compiler, key-function enums | ILSpy decompile to C# (**you install**) |
+| `3D Software - RGB.exe` (.NET) | Exact blob writer, compression codecs, script compiler, key-function enums | ✅ decompiled C# in `.agent/external/decompiled/` |
 | `Simulator.dll` (x86 native) | Engine implementation, very likely the same C code as the firmware | Ghidra (installed) |
 | Firmware app (`0x08006000…`, Thumb) | Hardware layer: scan timing, color depth, ADC/IR/UART/EEPROM, button/DIP logic, console | Ghidra (installed) |
 
@@ -53,7 +53,9 @@ Plus an **executable oracle**. A host-side Go test built for `GOARCH=386` on Win
 - [ ] Ghidra headless projects (scripts under `.agent/tools/ghidra/`) exporting decompiled C into `.agent/re/`:
   - `Simulator.dll` (x86, PE)
   - app low (`0x08006000`) + app high (`0x08032100`), ARM Cortex-M Thumb LE, with peripheral labels
-- [ ] ILSpy output of `3D Software - RGB.exe` and `Download Software.exe` into `.agent/external/decompiled/` (**you run ILSpy**. I'll give exact steps.)
+- [x] ILSpy output of `3D Software - RGB.exe` and `Download Software.exe` in `.agent/external/decompiled/` (done by you).
+- [x] Ghidra headless decompiles of `Simulator.dll` and the firmware + peripheral annotation. See [../re/README.md](../re/README.md).
+- [x] Blob parser `.agent/tools/blobdump` (validated on all 5 vendor hexes and our dump).
 
 ### Phase 2: Reverse engineering → specs (desk work)
 

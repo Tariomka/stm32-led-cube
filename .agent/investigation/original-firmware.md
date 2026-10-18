@@ -64,7 +64,7 @@ The hex has two parts: the fixed firmware **head and tail**, with the **compiled
    - Porting = re-implementing the engine (the data decoder, the frame/element renderer, the script VM, audio mode, keys) in Go, then embedding the **original blob unchanged**.
    - Every original show then runs as is, and new shows made in the PC app can be dropped in too.
 2. `Simulator.dll` is the best RE target. It is x86 (much nicer decompilation than Thumb), has named exports, and is likely built from the same C source. It also gives an **executable oracle**: a Windows/386 Go test harness can load the DLL, feed it the blob, step it, read frames with `GetCube`, and compare them frame by frame with our Go engine.
-3. The PC app (.NET) can be decompiled to C# with ILSpy. That gives the exact **blob format writer**, the **compression codecs** and the **bytecode compiler**, so the formats don't have to be guessed.
+3. The PC app (.NET) decompiled to C# (done, in `.agent/external/decompiled/`). That gives the exact **blob format writer**, the **compression codecs** and the **bytecode compiler**. See [../re/spec-blob-format.md](../re/spec-blob-format.md).
 
 ## Strings in the app (engine features)
 

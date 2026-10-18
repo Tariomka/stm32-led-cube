@@ -12,7 +12,7 @@ Checked 2026-10-18.
 | STM32CubeProgrammer | ✅ v2.23.0 | UART bootloader on **COM4**. See [../documentation/flashing-and-dumping.md](../documentation/flashing-and-dumping.md) |
 | USB-UART adapter | ✅ | Shows up as COM4 |
 | Ghidra + JDK 21 | ✅ (scoop) | For `Simulator.dll` and the firmware |
-| ILSpy | ❌ | Needed for the .NET PC software (you install it) |
+| ILSpy | — | Not installed (and not needed now): you provided the decompiled C# in `.agent/external/decompiled/` |
 | Python | ❌ | Not needed. Helper tools will be written in Go or PowerShell |
 
 ## Build

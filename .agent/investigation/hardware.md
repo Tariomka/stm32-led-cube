@@ -1,4 +1,4 @@
-# Hardware identification (from the photos in `.agent/physical/`)
+# Hardware identification (from the photos in `.agent/photos/`, gitignored)
 
 For the schematic-level pin map see [../documentation/schematics/README.md](../documentation/schematics/README.md).
 
