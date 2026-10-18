@@ -1,5 +1,7 @@
 # Plan: fix KEY5 (and the rest of the input pins)
 
+Status: **done, confirmed on hardware.** Only step 8 (upstream issue/PR) is left.
+
 Background: [../investigation/key5-pa14.md](../investigation/key5-pa14.md)
 
 ## Steps

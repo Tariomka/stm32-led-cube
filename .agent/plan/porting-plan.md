@@ -77,8 +77,8 @@ Each spec goes to `.agent/re/spec-*.md`:
 ### Phase 3: Hardware foundation in Go (testable tomorrow, independent of RE)
 
 - [x] KEY5 fix + input layer (see [key5-fix-plan.md](key5-fix-plan.md)). `component.Button` (EXTI falling edge, 30 ms debounce). Hardware check: `cmd/gpio_diag`.
-- [x] **Display driver:** `component.Scanner`, TIM2 ISR, OE blanking, LE pulse, double buffer, 2 BAM planes (400/800 µs per layer, ~104 Hz). Untested on hardware.
-- [ ] "Walk one LED" + Test-LED pattern to verify bit/LED order and color mapping.
+- [x] **Display driver:** `component.Scanner`, TIM2 ISR, OE blanking, LE pulse, double buffer, 2 BAM planes (400/800 µs per layer, ~104 Hz). Confirmed on hardware (orientation, colors, DIP groups, keys).
+- [x] "Walk one LED" not needed: the Test group (DIP 10) checked bit/LED order and colors on hardware.
 - [ ] 24C02 EEPROM driver (I2C1, PB6/PB7).
 - [ ] ADC on PA0 (mic), IR capture on PC6, UART2 (PA2/PA3).
 
