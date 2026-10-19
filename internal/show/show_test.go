@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
+	"github.com/Tariomka/stm32-led-cube/internal/engine/keyframe"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/player"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/render"
 	"github.com/Tariomka/stm32-led-cube/internal/show/original"
@@ -21,9 +22,9 @@ func TestMatchesOriginal(t *testing.T) {
 		t.Fatal(err)
 	}
 	SetMissing(func(kind, name string) { t.Errorf("missing %s %q", kind, name) })
-	for _, group := range []Group{Dynamic, Audio, Test} {
-		want := player.NewBlobShow(b, int(group))
-		got := Show(group)
+	for group, cartoons := range [][]func() *keyframe.Cartoon{Dynamic, Audio, Test} {
+		want := player.NewBlobShow(b, group)
+		got := New(cartoons)
 		if got.Count() != want.Count() {
 			t.Fatalf("group %d: %d cartoons, want %d", group, got.Count(), want.Count())
 		}

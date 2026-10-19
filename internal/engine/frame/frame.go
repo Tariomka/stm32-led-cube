@@ -1,7 +1,7 @@
 // Package frame converts engine voxel buffers into the bit planes shifted into the cube's MBI5024 driver chain.
 package frame
 
-// Layer data layout (from led-common-lib): 24 bytes per layer, sent LSB first.
+// Layer data layout: 24 bytes per layer, sent LSB first.
 // Bytes 0-7 green, 8-15 blue, 16-23 red; byte = row, bit = column.
 const (
 	Layers        = 8
@@ -63,11 +63,4 @@ func Encode(voxels []byte, mapping Mapping, out *Bits) {
 			}
 		}
 	}
-}
-
-// FromLayer fills both planes with the same 24-byte layer (full brightness, used for
-// led-common-lib layouts which have no color depth).
-func FromLayer(out *Bits, layer int, data []byte) {
-	copy(out[0][layer][:], data)
-	copy(out[1][layer][:], data)
 }

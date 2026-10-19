@@ -967,7 +967,8 @@ func dynamic41Rain1() *keyframe.Cartoon {
 	}
 }
 
-var dynamicCartoons = []func() *keyframe.Cartoon{
+// Dynamic lists the cartoons of the original Dynamic group, in order.
+var Dynamic = []func() *keyframe.Cartoon{
 	dynamic01X8x8,
 	dynamic02Shape,
 	dynamic03Waterfall1,

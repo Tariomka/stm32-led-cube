@@ -38,6 +38,9 @@ Logs: `.agent/live_testing/` (original at 921600 baud, ours at 115200).
 - [ ] **Upload**: in "3D Software - RGB" export `Update.hex` (or use a demo hex from `.agent/external/3D Software - RGB Cube/`), run `scripts\upload.cmd COM4` (close the terminal/monitor first), pick the file and download. Expect `Show upload started` … `Show upload OK` on the console (~2-3 min), then in Text mode `Uploaded show: N cartoons` and the show playing; it must survive a power cycle.
 - [x] Original-style log messages and pause/display off restored after a power cycle.
 - [ ] **Cascade**: needs a second cube. Connect cube A's jack TX to cube B's RX, power both together. B must print `DeviceType=0,DeviceNum=1` and play in step with A, following A's keys.
+- [ ] **Live DIP modes**: flip SW1/SW2 while running. The log prints `Mode=<name>` (+ `Total=`/`Run` lines) and the new show starts at once, keeping speed/pause/play model/display off. A paused cube shows the new show's first frame and stays paused.
+- [ ] **KEY6**: now only the play model key (long press does nothing special).
+- [ ] **Control commands** (`scripts\terminal.cmd`): `Status` → `Status:Mode=...,Cartoon=...`; `Key 2` → `DoKey2` + `Next Cartoon`; `Action 8` → `DeviceSuppend:1`; `Cartoon 5` → `Change Cartoon 5`; `Key 9` → `Param Error!`.
 
 ### 2. Later / optional
 

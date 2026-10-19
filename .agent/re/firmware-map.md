@@ -83,11 +83,11 @@ Command records (`0x80` bytes: name[24], help[100], handler) at `0x08038868` (8 
 - The PC "Download Software" sends `#?reboot?!` (every other try) and connect frames until the IAP bootloader answers, then streams `Update.hex` (`ClassUpdate.cs`). Protocol, all in `A5 05 len payload check 55` frames: PC `[17, md5[16], size u32]` → cube `[16, 0, 0,0,0,0]` (byte 1 ≠ 0 = already up to date); PC `[32, n, line u16 BE, address u32 BE, data[n]]` per type-00 hex record → cube `[33, n, line u16 BE]` within 200 ms (else the upload fails); PC `[37, 0]` twice at the end. Baud: the tool tries 921600 unless started as `"Download Software.exe" COMx <baud>`. The 3D Software's `Update.hex` is its firmware template with the show data at `0x0800B000..0x08032100` (`Compile.cs`).
 - Our firmware answers this protocol itself (`internal/upload`), keeps only the show region in a flash slot and plays it in Text mode; the console's ReBoot is deferred 300 ms and cancelled by the connect frame.
 - **Wire format** (`FUN_0800901c`, matches `ClassCommunication.WriteStringData` in the PC tool): text commands are `#?<command line>?!` (≤ 180 chars, a 1 s gap resets the parser). Tokens are split on spaces, the command name is compared case-insensitively, the handler gets `(argv+1, argc-1)`. Unknown commands print the Help line. Binary frames `A5 05 len data xor 55` are only logged (`RecvData=%d:`); they're for the IAP bootloader.
-- Every reply line ends with `\r\n`. USART1 runs at **921600** baud in the original (`FUN_0800ad08`, confirmed by the boot log in `.agent/live_testing/original output 921600.txt`); ours stays at 115200 because the Pico link shares the port.
+- Every reply line ends with `\r\n`. USART1 runs at **921600** baud in the original (`FUN_0800ad08`, confirmed by the boot log in `.agent/live_testing/original output 921600.txt`); ours stays at 115200 (the Pico uses this same console and upload protocol).
 - Original boot log: IAP banner (`IAP version: 2.10`, `Start App!`), then `Debug Usart Init OK!`, `Regedit format error!`, OS task list, `WDOG Init OK!`, `System init!`, `T='8x32x8b'`, `Config1=0,Config2=0`, `DeviceType:1,DeviceNum:0`, `DisplayAdd=0x200005CC`, `Total=1`, `Run x=0,y=0,z=0,dir=0,type=7`. Key presses print `DoKeyN` followed by the action message.
 - Registry flash format (`FUN_08036f84`, pages `0x08005000` and backup `0x08005800`, both erased in our dump): `u32 count`, `"Registry for 2.00"` padded to 28 bytes, `count × {key[12], u32 size}`, then the values (NUL-terminated, size rounded up to 4). Limits: key 1..11 chars, size ≤ 256, ≤ 64 entries, whole image ≤ 2 KB.
 
-Implemented: `internal/console` (commands + `#?…?!` / Pico frame splitter), `internal/registry` (vendor format, stored at `0x0807F000` + backup `0x0807F800`, reserved in the linker script), `component.SerialPort`, `component.WriteFlashPage`. Help texts are English (the original's are GBK Chinese). `ReadMem` refuses peripheral addresses.
+Implemented: `internal/console` (commands + `#?…?!` / upload frame splitter, plus our `Key`/`Action`/`Cartoon`/`Status` control commands), `internal/registry` (vendor format, stored at `0x0807F000` + backup `0x0807F800`, reserved in the linker script), `component.SerialPort`, `component.WriteFlashPage`. Help texts are English (the original's are GBK Chinese). `ReadMem` refuses peripheral addresses.
 
 ### 24C02 EEPROM
 
@@ -106,7 +106,7 @@ USART2 115200 8N1 (`FUN_0800ae14`), TX PA2 → next cube's RX PA3. State at `0x2
 - **Slave** (`FUN_08032be4`): on `[20 …]` forward it, take the clock, run key functions for rising mask bits. Slaves don't poll their own keys or IR.
 - Frame waits (`FUN_08037090`) compare against the shared clock, so every cube advances frames on the master's clock.
 
-Implemented: `internal/cascade` (frames, discovery, Sync, key mask), `component.CascadePort`, `runner/input.go`. Differences: our master builds the key mask from key interrupts (a press holds its bit for 3 frames, a key held 3 frames keeps it), so short taps work; KEY6 long press (runner mode) stays local.
+Implemented: `internal/cascade` (frames, discovery, Sync, key mask), `component.CascadePort`, `runner/input.go`. Differences: our master builds the key mask from key interrupts (a press holds its bit for 3 frames, a key held 3 frames keeps it), so short taps work.
 
 ## Next RE steps
 

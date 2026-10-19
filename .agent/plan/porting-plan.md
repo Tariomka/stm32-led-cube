@@ -93,13 +93,12 @@ Each spec goes to `.agent/re/spec-*.md`:
 
 ### Phase 5: Integration with the current architecture
 
-- [x] `runner`: `OnboardMode` driven by `engine/player`. DIP group selects the cartoon group at boot. Keys run the blob's key functions. KEY6 long press (≥ 1 s) cycles runner modes.
+- [x] `runner`: driven by `engine/player`. DIP switches select the show (`controller.StateTracker`), now live without a reset. Keys run the show's key functions. (The old KEY6 long-press runner modes were removed.)
 - [x] Remove `internal/show` (test shows) and `internal/component/registers`. (`tmp/cmd/*` still imports `registers` and no longer builds; it's gitignored.)
 - [x] Audio group: `Player.AudioFrame(mode)` = microphone level (firmware algorithm, see `re/spec-engine.md`).
 - [x] IR remote: NEC decoder + the original button → key action table (`internal/remote`).
-- [ ] `SerialMode` loop is a placeholder; hook the Pico protocol to `Board.ShowLayout`.
-- [ ] Keep `SerialMode` / Pico protocol. Decide later how the desktop app talks to the engine (e.g. upload a blob, select a show, live frames).
-- [x] UART console compatible with the vendor's (`#?cmd?!`; Help, ReBoot, ReadMem, SetReg/GetReg/RegList/DelReg/ClrReg, SetType, SetSerial, Test). Shares UART1 with the Pico link through `console.Demux`. Registry in the vendor flash format in the last 4 KB of flash.
+- [x] Pico/desktop: no separate protocol. The Pico uses the console (`Key`/`Action`/`Cartoon`/`Status` added) and the upload frames. The old `led-common-lib` UART link, `ShowLayout` and the Serial/Debug modes were removed. Sibling project work is described in their `.agent/stm32-alignment.md`.
+- [x] UART console compatible with the vendor's (`#?cmd?!`; Help, ReBoot, ReadMem, SetReg/GetReg/RegList/DelReg/ClrReg, SetType, SetSerial, Test). Registry in the vendor flash format in the last 4 KB of flash.
 - [x] Cascade (UART2): discovery, numbering, display placement by cube number, Sync with shared show clock and key mask. Original protocol, so it should interoperate with original-firmware cubes.
 - Not ported on purpose: vendor IAP bootloader / PC update tool, serial copy protection, IWDG watchdog, display `dir` = 1.
 

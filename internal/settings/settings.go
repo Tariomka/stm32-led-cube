@@ -15,7 +15,7 @@ type Settings struct {
 	PlayAll    bool
 	Paused     bool
 	DisplayOff bool
-	Group      uint8 // DIP group the cartoon belongs to
+	Mode       uint8 // DIP switch mode the cartoon belongs to
 	Cartoon    uint8
 }
 
@@ -35,7 +35,7 @@ func checksum(bytes []byte) byte {
 }
 
 func (this Settings) Marshal() [Size]byte {
-	bytes := [Size]byte{magic0, magic1, version, this.Speed, 0, this.Group, this.Cartoon}
+	bytes := [Size]byte{magic0, magic1, version, this.Speed, 0, this.Mode, this.Cartoon}
 	if this.PlayAll {
 		bytes[4] |= flagPlayAll
 	}
@@ -61,7 +61,7 @@ func Unmarshal(bytes [Size]byte) (Settings, bool) {
 		PlayAll:    flags&flagPlayAll != 0,
 		Paused:     flags&flagPaused != 0,
 		DisplayOff: flags&flagDisplayOff != 0,
-		Group:      bytes[5],
+		Mode:       bytes[5],
 		Cartoon:    bytes[6],
 	}, true
 }

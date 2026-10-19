@@ -134,7 +134,8 @@ func audio10AudioG2() *keyframe.Cartoon {
 	}
 }
 
-var audioCartoons = []func() *keyframe.Cartoon{
+// Audio lists the cartoons of the original Audio group, in order.
+var Audio = []func() *keyframe.Cartoon{
 	audio01AudioG1,
 	audio02AudioG2,
 	audio03AudioG1,

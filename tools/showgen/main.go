@@ -24,9 +24,9 @@ type groupInfo struct {
 }
 
 var groups = []groupInfo{
-	{0, "dynamic.go", "dynamicCartoons", "Dynamic"},
-	{1, "audio.go", "audioCartoons", "Audio"},
-	{2, "test.go", "testCartoons", "Test"},
+	{0, "dynamic.go", "Dynamic", "Dynamic"},
+	{1, "audio.go", "Audio", "Audio"},
+	{2, "test.go", "Test", "Test"},
 }
 
 const header = "// Generated from the original iCubeSmart show data by tools/showgen.\n\npackage show\n\n"
@@ -50,6 +50,7 @@ func main() {
 			names = append(names, name)
 			writeCartoon(&body, g, i, name, c, shapes, palettes)
 		}
+		fmt.Fprintf(&body, "// %s lists the cartoons of the original %s group, in order.\n", g.list, g.label)
 		fmt.Fprintf(&body, "var %s = []func() *keyframe.Cartoon{\n", g.list)
 		for _, name := range names {
 			fmt.Fprintf(&body, "\t%s,\n", name)

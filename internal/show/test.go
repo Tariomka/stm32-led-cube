@@ -67,7 +67,8 @@ func test04X8x1() *keyframe.Cartoon {
 	}
 }
 
-var testCartoons = []func() *keyframe.Cartoon{
+// Test lists the cartoons of the original Test group, in order.
+var Test = []func() *keyframe.Cartoon{
 	test01X8x1,
 	test02X8x1,
 	test03X8x1,

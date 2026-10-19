@@ -1,6 +1,7 @@
 // Package console implements the original firmware's UART console commands (Help, ReBoot,
 // ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test) with the same
-// replies, see .agent/re/firmware-map.md.
+// replies, see .agent/re/firmware-map.md, plus show control commands (Key, Action, Cartoon,
+// Status) for the Pico and PC tools.
 package console
 
 import (
@@ -17,6 +18,14 @@ type Device interface {
 	SetType(cubeType [8]byte) error
 	SetSerial(serial [8]byte) error
 	SaveRegistry(r *registry.Registry) error
+}
+
+// Remote is the show player behind the control commands.
+type Remote interface {
+	Key(key int)             // presses KEY1..KEY7 (key 0..6)
+	Action(action int)       // runs a key function code (player.Action*)
+	Select(cartoon int) bool // restarts the show on a cartoon, false if out of range
+	Status() string          // "Mode=...,Cartoon=..." line
 }
 
 type command struct {
@@ -39,12 +48,18 @@ func init() {
 		{"SetType", "SetType [type] ;Set the cube type", (*Console).setType},
 		{"SetSerial", "SetSerial [serial] ;Set the cube serial number", (*Console).setSerial},
 		{"Test", "Test", (*Console).test},
+		{"Key", "Key [1-7] ;Press a key", (*Console).key},
+		{"Action", "Action [code] ;Run a key function", (*Console).action},
+		{"Cartoon", "Cartoon [index] ;Play a cartoon", (*Console).cartoon},
+		{"Status", ";Show the player state", (*Console).status},
 	}
 }
 
 type Console struct {
 	Device   Device
 	Registry *registry.Registry
+	// Remote runs the show control commands; nil until the shows are running.
+	Remote Remote
 	// Write sends raw text to the UART.
 	Write func(s string)
 }
@@ -274,4 +289,45 @@ func (this *Console) setSerial(args []string) {
 
 func (this *Console) test(args []string) {
 	this.println("DoTest")
+}
+
+// remoteArg parses the single numeric argument of a control command within [low, high].
+func (this *Console) remoteArg(args []string, low, high int) (int, bool) {
+	if this.Remote == nil {
+		this.println("Not Ready!")
+		return 0, false
+	}
+	if len(args) == 1 {
+		if v, ok := parseNumber(args[0]); ok && int(v) >= low && int(v) <= high {
+			return int(v), true
+		}
+	}
+	this.println("Param Error!")
+	return 0, false
+}
+
+func (this *Console) key(args []string) {
+	if key, ok := this.remoteArg(args, 1, 7); ok {
+		this.Remote.Key(key - 1)
+	}
+}
+
+func (this *Console) action(args []string) {
+	if action, ok := this.remoteArg(args, 1, 19); ok {
+		this.Remote.Action(action)
+	}
+}
+
+func (this *Console) cartoon(args []string) {
+	if index, ok := this.remoteArg(args, 0, 255); ok && !this.Remote.Select(index) {
+		this.println("Param Error!")
+	}
+}
+
+func (this *Console) status(args []string) {
+	if this.Remote == nil {
+		this.println("Not Ready!")
+		return
+	}
+	this.println("Status:" + this.Remote.Status())
 }

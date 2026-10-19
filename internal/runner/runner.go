@@ -5,10 +5,8 @@ import (
 	"time"
 
 	"github.com/Tariomka/stm32-led-cube/internal/common/global"
-	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/controller"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
-	"github.com/Tariomka/stm32-led-cube/internal/engine/keyframe"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/player"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/render"
 	"github.com/Tariomka/stm32-led-cube/internal/settings"
@@ -29,12 +27,12 @@ type CubeRunner struct {
 	Player  *player.Player
 	Tracker *controller.StateTracker
 
-	uploaded *blob.Blob // show data uploaded from the PC, played in Text mode; nil if none
-	canvas   render.Canvas
-	group    show.Group
-	saveAt   time.Time // when to persist the settings, zero if nothing changed
-	// pauseAfterFrame restores a saved pause once the first frame is on the cube, so it isn't blank
+	canvas render.Canvas
+	saveAt time.Time // when to persist the settings, zero if nothing changed
+	// pauseAfterFrame restores a pause once the first frame of a show is on the cube, so it isn't
+	// blank or still showing the previous show
 	pauseAfterFrame bool
+	showChanged     bool // the show was replaced, stop waiting for the current frame
 
 	input
 }
@@ -50,10 +48,9 @@ func NewRunner(config RunnerConfig) Runner {
 		Board:   board,
 		Tracker: controller.NewStateTracker(),
 		canvas:  render.Canvas{Displays: []render.Display{render.NewDisplay(0, 0, 0, 8, 8, 8)}},
-		group:   board.ShowGroup(),
 	}
 	show.SetMissing(func(kind, name string) { println("Not found " + kind + ":'" + name + "'") })
-	runner.Player = player.New(runner.groupShow(), &runner.canvas)
+	runner.Player = player.New(runner.modeShow(), &runner.canvas)
 	runner.Player.Log = func(msg string) { println(msg) }
 	runner.Player.AudioFrame = board.AudioLevel
 	runner.Player.ADC = func(channel int, raw bool) int {
@@ -68,47 +65,63 @@ func NewRunner(config RunnerConfig) Runner {
 		runner.Player.PlayAll = saved.PlayAll
 		runner.Player.DisplayOff = saved.DisplayOff
 		runner.pauseAfterFrame = saved.Paused
-		if show.Group(saved.Group) == runner.group {
+		if controller.Mode(saved.Mode) == runner.Tracker.Mode {
 			runner.Player.Select(int(saved.Cartoon))
 		}
 	}
 	board.OnUpload(runner.uploadStarted, runner.uploadFinished)
+	board.SetRemote(runner)
 	return runner
 }
 
-// groupShow is the built-in show of the DIP group, or the uploaded show in Text mode.
-func (this *CubeRunner) groupShow() player.Show {
-	if built := show.Show(this.group); built != nil {
-		return built
+// modeShow is the show of the DIP mode: built in, or the uploaded show data in Text mode.
+func (this *CubeRunner) modeShow() player.Show {
+	modeShow := this.Tracker.Show()
+	if this.Tracker.Mode == controller.Text {
+		if this.Tracker.Uploaded == nil {
+			println("No uploaded show")
+		} else {
+			println("Uploaded show: " + strconv.Itoa(modeShow.Count()) + " cartoons")
+		}
 	}
-	b, err := blob.Parse(this.Board.UploadedShow())
-	if err != nil {
-		this.uploaded = nil
-		println("No uploaded show")
-		return &keyframe.Show{Keys: show.Keys}
+	return modeShow
+}
+
+// setShow switches the player to another show; a paused player still draws its first frame.
+func (this *CubeRunner) setShow(next player.Show) {
+	if this.Player.Paused {
+		this.Player.Paused, this.pauseAfterFrame = false, true
 	}
-	this.uploaded = b
-	uploaded := player.NewBlobShow(b, 0, 1, 2, 3)
-	println("Uploaded show: " + strconv.Itoa(uploaded.Count()) + " cartoons")
-	return uploaded
+	this.Player.SetShow(next)
+	this.placeDisplay()
+	this.showChanged = true
+}
+
+// changeMode follows a DIP switch change without a restart.
+func (this *CubeRunner) changeMode() {
+	println("Mode=" + this.Tracker.Mode.String())
+	this.setShow(this.modeShow())
+	this.saveAt = time.Now().Add(saveDelay)
 }
 
 // uploadStarted stops playing the show slot before the upload rewrites it.
 func (this *CubeRunner) uploadStarted() {
-	if this.group == show.Text {
-		this.uploaded = nil
-		this.Player.SetShow(&keyframe.Show{Keys: show.Keys})
+	this.Tracker.SetUploading(true)
+	if this.Tracker.Mode == controller.Text {
+		this.Player.SetShow(this.Tracker.Show())
+		this.showChanged = true
 	}
 }
 
 func (this *CubeRunner) uploadFinished(ok bool) {
+	this.Tracker.SetUploading(false)
 	if ok {
 		println("Show upload OK")
 	} else {
 		println("Show upload failed")
 	}
-	if this.group == show.Text {
-		this.Player.SetShow(this.groupShow())
+	if this.Tracker.Mode == controller.Text {
+		this.setShow(this.modeShow())
 	}
 }
 
@@ -117,9 +130,9 @@ func (this *CubeRunner) saveSettings() {
 	err := this.Board.SaveSettings(settings.Settings{
 		Speed:      uint8(this.Player.Speed()),
 		PlayAll:    this.Player.PlayAll,
-		Paused:     this.Player.Paused,
+		Paused:     this.Player.Paused || this.pauseAfterFrame,
 		DisplayOff: this.Player.DisplayOff,
-		Group:      uint8(this.group),
+		Mode:       uint8(this.Tracker.Mode),
 		Cartoon:    uint8(this.Player.Current()),
 	})
 	if err != nil {
@@ -129,9 +142,6 @@ func (this *CubeRunner) saveSettings() {
 
 // action runs a key function of the shows and schedules saving the settings.
 func (this *CubeRunner) action(run func()) {
-	if this.Tracker.CurrentMode != controller.OnboardMode {
-		return
-	}
 	this.pauseAfterFrame = false
 	run()
 	this.saveAt = time.Now().Add(saveDelay)
@@ -139,30 +149,27 @@ func (this *CubeRunner) action(run func()) {
 
 func (this *CubeRunner) Start() {
 	global.HandleStartup()
+	println("Config1=" + strconv.Itoa(int(this.Tracker.Mode)) + ",Config2=" + strconv.Itoa(this.Tracker.Config2()))
 	this.discoverCascade()
 	this.placeDisplay()
 
 	for {
-		switch this.Tracker.CurrentMode {
-		case controller.OnboardMode:
-			this.runOnboard()
-		case controller.DebugMode:
-			this.runDebugLoop()
-		case controller.SerialMode:
-			this.runSerialLoop()
-		}
+		this.runOnboard()
 	}
 }
 
 // placeDisplay positions this cube in the show canvas by its cascade number, like the original.
 // The built-in shows are for one cube at the origin; uploaded show data has its own table.
 func (this *CubeRunner) placeDisplay() {
+	if this.link == nil {
+		return // Start places it after the cascade discovery
+	}
 	count, number := 1, this.link.Number
 	var display blob.Display
-	if this.uploaded != nil {
-		count = this.uploaded.DisplayCount()
+	if uploaded := this.Tracker.Uploaded; uploaded != nil {
+		count = uploaded.DisplayCount()
 		if number < count {
-			display = this.uploaded.Display(number)
+			display = uploaded.Display(number)
 		}
 	}
 	if number >= count {
@@ -227,24 +234,47 @@ func (this *CubeRunner) runOnboard() {
 	}
 }
 
-func (this *CubeRunner) runDebugLoop() {
-	// Placeholder
-	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
-	this.handleInput()
+// Key presses KEY1..KEY7 (key 0..6) for a console command, like the physical key.
+func (this *CubeRunner) Key(key int) {
+	this.pressed |= 1 << key
 }
 
-func (this *CubeRunner) runSerialLoop() {
-	// Placeholder
-	this.Board.SetBlank(true)
-	data := this.Board.Receive()
-	if len(data) > 0 {
-		this.Board.Send("Received:" + string(data))
+// Action runs a key function code for a console command, like the IR remote.
+func (this *CubeRunner) Action(action int) {
+	this.action(func() { this.Player.Action(action) })
+}
+
+// Select restarts the show on a cartoon for a console command.
+func (this *CubeRunner) Select(cartoon int) bool {
+	if cartoon >= this.Player.Count() {
+		return false
 	}
-	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
-	for range 200 {
-		if this.handleInput() {
-			return
-		}
-		time.Sleep(tick)
+	this.action(func() {
+		println("Change Cartoon " + strconv.Itoa(cartoon))
+		this.Player.Select(cartoon)
+	})
+	return true
+}
+
+// Status describes the player state for the console Status command.
+func (this *CubeRunner) Status() string {
+	number := 0
+	if this.link != nil {
+		number = this.link.Number
 	}
+	return "Mode=" + this.Tracker.Mode.String() +
+		",Cartoon=" + strconv.Itoa(this.Player.Current()) +
+		",Count=" + strconv.Itoa(this.Player.Count()) +
+		",Speed=" + this.Player.SpeedText() +
+		",PlayModel=" + flag(this.Player.PlayAll) +
+		",Pause=" + flag(this.Player.Paused || this.pauseAfterFrame) +
+		",DisplayOff=" + flag(this.Player.DisplayOff) +
+		",DeviceNum=" + strconv.Itoa(number)
+}
+
+func flag(value bool) string {
+	if value {
+		return "1"
+	}
+	return "0"
 }

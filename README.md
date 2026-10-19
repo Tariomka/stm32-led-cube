@@ -36,14 +36,15 @@ Here's a basic brakedown of the structure of directories:
 ├── cmd # Applications directory
 │   └── **/main.go # Main entry point for eacy application
 ├── docs # Documentation directory
+│   ├── documentation # Hardware, display, protocols, show format/engine, storage and firmware reference
 │   ├── diagrams # Schematics and other wiring related docs
 │   └── manuals # Data sheets, user manuals and similar docs
 ├── firmware # External binaries, for example dumped bootloader, etc.
 ├── internal # Core project functionality, considered as private library code
 │   ├── cascade # Original cube-chaining protocol (host testable)
 │   ├── component # Pins, buttons, demultiplexer, BAM display scanner (TIM2), microphone (ADC + TIM3), IR receiver, UARTs, EEPROM, flash
-│   ├── console # Original UART console commands + console/Pico byte stream splitter (host testable)
-│   ├── controller # Board wiring (keys, DIP switches, UART, display, microphone, IR)
+│   ├── console # Original UART console commands + show control commands + console/upload byte stream splitter (host testable)
+│   ├── controller # Board wiring (keys, UART, display, microphone, IR) and the DIP switch mode tracker
 │   ├── engine # Re-implementation of the original iCubeSmart show engine (host testable)
 │   │   ├── audio # Microphone samples -> 0..63 level for the Audio group
 │   │   ├── blob # Show data blob parser + graph decompression
@@ -68,7 +69,7 @@ Here's a basic brakedown of the structure of directories:
 
 The premade shows of the original firmware are Go functions in `internal/show` (one per cartoon, generated once from the original show data by `go run ./tools/showgen`; a test checks every frame matches the original). They run on a Go port of the original show engine.
 
-DIP SW1/SW2 select the show mode at power-up (`show.Group`):
+DIP SW1/SW2 select the show mode (`controller.Mode`). Changing them switches the show right away, without a reset:
 
 | SW1 | SW2 | Mode |
 |---|---|---|
@@ -81,13 +82,15 @@ Uploading: make a show in the iCubeSmart "3D Software - RGB" and export `Update.
 
 Other original features:
 - KEY1..KEY7 run the original key functions (prev, next, speed+, speed-, pause, play mode, display off).
-- Holding KEY6 for 1 second cycles the runner mode (original shows, serial/Pico, debug).
 - Audio group cartoons follow the microphone level (PA0).
 - The kit's 21-key IR remote works like the original: CH- display off, CH+ play mode, VOL-/EQ previous/next, VOL+ pause, >>| speed up, 100+ speed down, >|| speed reset, 200+ replay, 0..9 jump to cartoon 0..9.
 - Speed, play mode, pause, display off and the selected cartoon are kept in the 24C02 EEPROM across power cycles.
-- The original UART console works on UART1 (115200 baud, shared with the Pico link): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself; so does `scripts\terminal.cmd`, an interactive terminal for Windows). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
+- The original UART console works on UART1 (115200 baud): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself; so does `scripts\terminal.cmd`, an interactive terminal for Windows). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
+- Remote control commands on the same console: `Key 1-7`, `Action 1-19`, `Cartoon <index>`, `Status`. The Raspberry Pi Pico uses this console and the upload frames, like the PC tools; there is no separate Pico protocol.
 - Flash map: firmware up to 350 KB, uploaded show data at `0x08057800` (158 KB), registry at `0x0807F000` (see `targets/gd32f103re.ld`).
 - Cascade: cubes chained over the 3.5 mm jacks (TX to the next cube's RX) find their order at power-up and play in step, following the first cube's keys. It uses the original protocol.
+
+Full reference (hardware, display, protocols, show format, storage, firmware): [docs/documentation](docs/documentation/README.md).
 
 Run the host tests with `go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/... ./internal/show/... ./internal/upload/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
 

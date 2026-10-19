@@ -70,27 +70,29 @@ type Player struct {
 	Log func(msg string)
 }
 
-// New creates a player for show drawing into canvas.
+// New creates a player for show drawing into canvas, with default settings.
 func New(show Show, canvas *render.Canvas) *Player {
-	p := &Player{canvas: canvas}
+	p := &Player{canvas: canvas, PlayAll: true, speed: defaultSpeed}
 	p.SetShow(show)
 	return p
 }
 
-// SetShow restarts the player on another show with default settings.
+// SetShow restarts the player on the first cartoon of another show; speed, play model, pause
+// and display off are kept.
 func (this *Player) SetShow(show Show) {
 	if blobShow, ok := show.(*BlobShow); ok {
 		blobShow.assets.Missing = func(kind, name string) { this.log("Not found " + kind + ":'" + name + "'") }
 	}
 	this.show, this.cartoon = show, nil
 	this.current, this.running, this.change = 0, false, false
-	this.PlayAll, this.Paused, this.DisplayOff = true, false, false
-	this.speed = defaultSpeed
 	this.keyCapture, this.capturedKey = false, 0
 	this.vm = nil
 }
 
 func (this *Player) Current() int { return this.current }
+
+// Count is the number of cartoons in the show.
+func (this *Player) Count() int { return this.show.Count() }
 
 func (this *Player) Speed() int { return this.speed }
 
@@ -261,17 +263,17 @@ func (this *Player) Action(action int) {
 	case ActionSpeedUp:
 		if this.speed < len(speedTenths)-1 {
 			this.speed++
-			this.log("Add speed to " + this.speedText())
+			this.log("Add speed to " + this.SpeedText())
 		}
 	case ActionSpeedReset:
 		if this.speed != defaultSpeed {
 			this.speed = defaultSpeed
-			this.log("Speed reset to " + this.speedText())
+			this.log("Speed reset to " + this.SpeedText())
 		}
 	case ActionSpeedDown:
 		if this.speed > 0 {
 			this.speed--
-			this.log("Sub speed to " + this.speedText())
+			this.log("Sub speed to " + this.SpeedText())
 		}
 	case ActionPlayModel:
 		this.PlayAll = !this.PlayAll
@@ -285,8 +287,8 @@ func (this *Player) Action(action int) {
 	}
 }
 
-// speedText formats the speed factor like "%.2f".
-func (this *Player) speedText() string {
+// SpeedText formats the speed factor like "%.2f" (e.g. "1.50").
+func (this *Player) SpeedText() string {
 	tenths := speedTenths[this.speed]
 	return strconv.Itoa(tenths/10) + "." + strconv.Itoa(tenths%10) + "0"
 }

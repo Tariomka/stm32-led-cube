@@ -7,16 +7,11 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/console"
 )
 
-// SerialPort shares UART1 between the vendor-style console, the vendor tools' binary frames and
-// the Pico link: console commands and frames are handled as they arrive, everything else is
-// buffered for the link reader.
+// SerialPort runs UART1: console commands and upload frames are handled as they arrive.
 type SerialPort struct {
-	uart    *machine.UART
-	demux   console.Demux
-	start   time.Time
-	pending [1024]byte
-	head    int
-	size    int
+	uart  *machine.UART
+	demux console.Demux
+	start time.Time
 }
 
 func NewSerialPort(uart *machine.UART, command func(line string), frame func(payload []byte)) *SerialPort {
@@ -32,24 +27,8 @@ func (this *SerialPort) Poll() {
 		if err != nil {
 			return
 		}
-		if this.demux.Feed(b, now) && this.size < len(this.pending) {
-			this.pending[(this.head+this.size)%len(this.pending)] = b
-			this.size++
-		}
+		this.demux.Feed(b, now)
 	}
-}
-
-// Read returns buffered Pico link bytes (never blocks).
-func (this *SerialPort) Read(p []byte) (int, error) {
-	this.Poll()
-	n := 0
-	for n < len(p) && this.size > 0 {
-		p[n] = this.pending[this.head]
-		this.head = (this.head + 1) % len(this.pending)
-		this.size--
-		n++
-	}
-	return n, nil
 }
 
 func (this *SerialPort) Write(p []byte) (int, error) {

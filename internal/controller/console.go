@@ -107,7 +107,3 @@ func (this *YellowBoard) OnUpload(started func(), finished func(ok bool)) {
 	}
 	this.Upload.Finished = finished
 }
-
-func (this *YellowBoard) UploadedShow() string {
-	return component.ShowSlotData()
-}

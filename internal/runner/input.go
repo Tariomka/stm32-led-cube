@@ -9,28 +9,21 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/remote"
 )
 
-const (
-	cycleKey      = 5 // KEY6: short press = show key function, long press = cycle runner mode
-	cycleBit      = 1 << cycleKey
-	longPressTime = time.Second
-	syncPeriod    = 8 * time.Millisecond // master Sync rate, like the original tick task
-)
+const syncPeriod = 8 * time.Millisecond // master Sync rate, like the original tick task
 
-// input handles keys, the IR remote, the console and the cube cascade.
+// input handles the DIP switches, keys, the IR remote, the console and the cube cascade.
 //
 // Like the original, key functions don't run straight from the key interrupts: the master
 // turns key presses into the key mask of its Sync frames and every cube (master included)
 // runs a key's function on the rising edge of its bit, so cascaded cubes stay in step. The
-// master also provides the show clock. Slaves ignore their own keys and IR remote; KEY6 held
-// for 1 s still cycles the runner mode locally.
+// master also provides the show clock. Slaves ignore their own keys and IR remote.
 type input struct {
-	link       *cascade.Link
-	keyMask    cascade.KeyMask
-	slaveKeys  uint8 // last key mask received by a slave
-	pressed    uint8 // key presses not sent yet
-	showStart  time.Time
-	lastSync   time.Time
-	cycleSince time.Time // when the pending KEY6 press started, zero if none
+	link      *cascade.Link
+	keyMask   cascade.KeyMask
+	slaveKeys uint8 // last key mask received by a slave
+	pressed   uint8 // key presses not sent yet
+	showStart time.Time
+	lastSync  time.Time
 }
 
 // clock is the show time in ms: the master's own, or the last one a slave received.
@@ -72,7 +65,7 @@ func (this *CubeRunner) discoverCascade() {
 func (this *CubeRunner) heldKeys() uint8 {
 	var held uint8
 	for key := 0; key < controller.KeyCount; key++ {
-		if key != cycleKey && this.Board.KeyHeld(key) {
+		if this.Board.KeyHeld(key) {
 			held |= 1 << key
 		}
 	}
@@ -90,62 +83,40 @@ func (this *CubeRunner) runKeys(edges uint8) {
 	}
 }
 
-// handleInput processes console, cascade, keys and IR; it returns true when the runner mode
-// changed.
+// handleInput processes the console, DIP switches, cascade, keys and IR; it returns true when
+// the show was replaced.
 func (this *CubeRunner) handleInput() bool {
 	this.Board.PollSerial()
 	if !this.saveAt.IsZero() && time.Now().After(this.saveAt) {
 		this.saveSettings()
 	}
+	if this.Tracker.Update() {
+		this.changeMode()
+	}
 	synced := this.pollCascade()
-
-	events := this.Board.TakeKeys()
-	if events&cycleBit != 0 {
-		this.cycleSince = time.Now()
-	}
-	this.pressed |= events &^ cycleBit
-	modeChanged, shortPress := this.checkCycleKey()
-	if shortPress {
-		this.pressed |= cycleBit
-	}
-
+	this.pressed |= this.Board.TakeKeys()
 	code := this.Board.TakeRemote()
+
 	if !this.link.Master {
 		if synced {
 			this.runKeys(cascade.Edges(&this.slaveKeys, this.link.Keys))
 		}
 		this.pressed = 0
-		return modeChanged
-	}
-
-	if time.Since(this.lastSync) >= syncPeriod {
-		this.lastSync = time.Now()
-		mask, edges := this.keyMask.Next(this.heldKeys(), this.pressed)
-		this.pressed = 0
-		this.link.SendSync(this.clock(), mask)
-		this.runKeys(edges)
-	}
-	if code != 0 {
-		println("IR:" + strconv.FormatInt(int64(code), 16))
-		this.action(func() { this.Player.Action(remote.Action(code)) })
-	}
-	return modeChanged
-}
-
-// checkCycleKey tells a KEY6 long press (cycle the runner mode) from a short one (key function).
-func (this *CubeRunner) checkCycleKey() (modeChanged, shortPress bool) {
-	if this.cycleSince.IsZero() {
-		return false, false
-	}
-	if this.Board.KeyHeld(cycleKey) {
-		if time.Since(this.cycleSince) < longPressTime {
-			return false, false
+	} else {
+		if time.Since(this.lastSync) >= syncPeriod {
+			this.lastSync = time.Now()
+			mask, edges := this.keyMask.Next(this.heldKeys(), this.pressed)
+			this.pressed = 0
+			this.link.SendSync(this.clock(), mask)
+			this.runKeys(edges)
 		}
-		this.cycleSince = time.Time{}
-		this.Tracker.CycleMode()
-		this.Board.SetBlank(false)
-		return true, false
+		if code != 0 {
+			println("IR:" + strconv.FormatInt(int64(code), 16))
+			this.action(func() { this.Player.Action(remote.Action(code)) })
+		}
 	}
-	this.cycleSince = time.Time{}
-	return false, true
+
+	changed := this.showChanged
+	this.showChanged = false
+	return changed
 }

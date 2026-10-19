@@ -11,7 +11,3 @@ var HandleFatal = func() {
 var HandleError = func() {}
 
 var HandleStartup = func() {}
-
-var HandlePrint = func(message string) {
-	println(message)
-}

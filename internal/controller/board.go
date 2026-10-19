@@ -3,17 +3,13 @@ package controller
 import (
 	"machine"
 	"runtime/interrupt"
-	"strconv"
 	"time"
 
-	"github.com/Tariomka/led-common-lib/pkg/led"
-	"github.com/Tariomka/led-common-lib/pkg/network"
 	"github.com/Tariomka/stm32-led-cube/internal/common/global"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/console"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/frame"
 	"github.com/Tariomka/stm32-led-cube/internal/settings"
-	"github.com/Tariomka/stm32-led-cube/internal/show"
 	"github.com/Tariomka/stm32-led-cube/internal/upload"
 )
 
@@ -21,26 +17,22 @@ const KeyCount = 7
 
 type Board interface {
 	Show(voxels []byte)              // Presents an 8x8x8 engine frame (index x + y*8 + z*64, 0bRRGGBB)
-	ShowLayout(s led.Slicer)         // Presents a led-common-lib layout at full brightness
 	SetBlank(blank bool)             // Turns all LEDs off / back on
 	TakeKeys() uint8                 // Keys pressed since the last call, bit n = KEY(n+1)
 	KeyHeld(key int) bool            // Whether KEY(key+1) is currently held down
-	ShowGroup() show.Group           // Show mode selected with DIP SW1/SW2
 	AudioLevel(mode int) int         // Microphone loudness 0..63 (audio cartoon level mode)
 	AudioRaw() int                   // Latest 12-bit microphone sample
 	TakeRemote() int                 // Last IR remote code since the previous call, 0 = none
-	PollSerial()                     // Runs pending console commands, buffers Pico link data
+	PollSerial()                     // Runs console commands and show uploads received on UART1
 	CascadeSend(payload []byte)      // Sends a payload to the next cube
 	CascadePoll(handle func([]byte)) // Passes payloads received from the previous cube
 	LoadSettings() (settings.Settings, bool)
-	CubeType() string // Vendor type string from the EEPROM, e.g. "8x8x8A"
-	// OnUpload sets the callbacks of a show upload from the vendor PC tool
-	OnUpload(started func(), finished func(ok bool))
-	UploadedShow() string // Show slot contents (show data uploaded from the PC)
 	SaveSettings(s settings.Settings) error
-	Send(message string)               // Sends message over UART
-	Receive() []byte                   // Receives data from UART
-	GetIndicator() component.Indicator // Gets onboard led indicator
+	CubeType() string // Vendor type string from the EEPROM, e.g. "8x8x8A"
+	// OnUpload sets the callbacks of a show upload from the PC tool or the Pico
+	OnUpload(started func(), finished func(ok bool))
+	// SetRemote lets console commands drive the shows (Key, Action, Status)
+	SetRemote(remote console.Remote)
 }
 
 // ICubeSmart controller board, powered by GD32F103RET6
@@ -48,12 +40,11 @@ type YellowBoard struct {
 	Scanner *component.Scanner // MBI5024 chain (SPI1 PA5/PA7, LE PC4, OE PC5) + 74HC154 layer select
 	Mapping frame.Mapping      // Orientation of the show coordinates on the physical cube
 
-	Serial        *component.SerialPort  // UART1, RX - PA10, TX - PA9: console + Pico link
-	UartProcessor *network.UartProcessor // Pico link protocol on Serial
-	Console       *console.Console       // Vendor-style console on Serial
-	Upload        *upload.Receiver       // Show upload from the vendor PC tool on Serial
-	EEPROM        component.EEPROM       // 24C02, SCL - PB6, SDA - PB7
-	Cascade       *component.CascadePort // 3.5 mm jacks, TX - PA2, RX - PA3
+	Serial  *component.SerialPort  // UART1, RX - PA10, TX - PA9: console, uploads and log output
+	Console *console.Console       // Console commands on Serial
+	Upload  *upload.Receiver       // Show uploads on Serial
+	EEPROM  component.EEPROM       // 24C02, SCL - PB6, SDA - PB7
+	Cascade *component.CascadePort // 3.5 mm jacks, TX - PA2, RX - PA3
 
 	// Onboard leds:
 	//
@@ -63,14 +54,8 @@ type YellowBoard struct {
 	LedsOnboard component.OnboardLeds
 
 	// KEY1 PC0 Previous, KEY2 PC1 Next, KEY3 PC2 Speed+, KEY4 PB3 Speed-,
-	// KEY5 PA14 Run/Pause, KEY6 PA13 Cycle, KEY7 PA11 On/Off
+	// KEY5 PA14 Run/Pause, KEY6 PA13 Play model, KEY7 PA11 On/Off
 	Keys [KeyCount]*component.Button
-
-	// DIP switches, ON = Low. SW1+SW2 select the show group (applied at reset)
-	Switch1 component.InputPin // PA1
-	Switch2 component.InputPin // PC3
-	Switch3 component.InputPin // PA15
-	Switch4 component.InputPin // PA12
 
 	Microphone *component.Microphone       // PA0
 	Infrared   *component.InfraredReceiver // PC6
@@ -104,10 +89,6 @@ func NewYellowBoard() Board {
 		EEPROM:      component.NewEEPROM(),
 		Cascade:     component.NewCascadePort(),
 		LedsOnboard: component.NewOnboardLeds(machine.PB9, machine.PB8),
-		Switch1:     component.NewInputPin(machine.PA1),
-		Switch2:     component.NewInputPin(machine.PC3),
-		Switch3:     component.NewInputPin(machine.PA15),
-		Switch4:     component.NewInputPin(machine.PA12),
 		Microphone:  component.NewMicrophone(),
 		Infrared:    component.NewInfraredReceiver(machine.PC6),
 	}
@@ -116,7 +97,6 @@ func NewYellowBoard() Board {
 	board.Serial = component.NewSerialPort(machine.UART1, board.Console.Run, board.Upload.Frame)
 	board.Upload.Reply = func(payload []byte) { board.Serial.Write(upload.Frame(payload)) }
 	board.Console.Write = board.Serial.WriteString
-	board.UartProcessor = network.NewUartProcessor(board.Serial)
 
 	for i, pin := range [KeyCount]machine.Pin{machine.PC0, machine.PC1, machine.PC2, machine.PB3, machine.PA14, machine.PA13, machine.PA11} {
 		board.Keys[i] = component.NewButton(pin)
@@ -139,26 +119,14 @@ func NewYellowBoard() Board {
 	global.HandleStartup = func() {
 		println("Led Cube is starting up")
 		println("T='" + board.CubeType() + "'")
-		println("Config1=" + strconv.Itoa(int(board.ShowGroup())) + ",Config2=" + strconv.Itoa(board.config2()))
 		board.LedsOnboard.BlinkStartup()
 	}
-	global.HandlePrint = board.Send
 
 	return &board
 }
 
 func (this *YellowBoard) Show(voxels []byte) {
 	frame.Encode(voxels, this.Mapping, this.Scanner.Back())
-	this.Scanner.Present()
-}
-
-func (this *YellowBoard) ShowLayout(s led.Slicer) {
-	back := this.Scanner.Back()
-	for index, slice := range s.IterateSlices() {
-		if int(index) < frame.Layers && len(slice) >= frame.BytesPerLayer {
-			frame.FromLayer(back, int(index), slice)
-		}
-	}
 	this.Scanner.Present()
 }
 
@@ -176,33 +144,6 @@ func (this *YellowBoard) TakeKeys() uint8 {
 
 func (this *YellowBoard) KeyHeld(key int) bool {
 	return key >= 0 && key < KeyCount && this.Keys[key].Pressed()
-}
-
-// ShowGroup follows the base board label: SW1/SW2 = 1/1 dynamic, 0/1 audio, 1/0 test, 0/0 text,
-// where 1 means the pin reads high (switch off).
-func (this *YellowBoard) ShowGroup() show.Group {
-	sw1, sw2 := this.Switch1.Get(), this.Switch2.Get()
-	switch {
-	case sw1 && sw2:
-		return show.Dynamic
-	case !sw1 && sw2:
-		return show.Audio
-	case sw1 && !sw2:
-		return show.Test
-	}
-	return show.Text
-}
-
-// config2 reads SW3/SW4 like the original (bit set = switch ON); it only prints it.
-func (this *YellowBoard) config2() int {
-	value := 0
-	if !this.Switch3.Get() {
-		value |= 1
-	}
-	if !this.Switch4.Get() {
-		value |= 2
-	}
-	return value
 }
 
 func (this *YellowBoard) AudioLevel(mode int) int {
@@ -225,25 +166,6 @@ func (this *YellowBoard) CascadePoll(handle func([]byte)) {
 	this.Cascade.Poll(handle)
 }
 
-func (this *YellowBoard) Send(message string) {
-	this.UartProcessor.WriteMessage(message)
-}
-
-func (this *YellowBoard) Receive() []byte {
-	dataType, content, err := this.UartProcessor.Read()
-	if err != nil {
-		global.HandleError()
-		return nil
-	}
-
-	switch dataType {
-	case network.UartPing:
-		this.UartProcessor.SendPong()
-	}
-
-	return content
-}
-
-func (this *YellowBoard) GetIndicator() component.Indicator {
-	return this.LedsOnboard
+func (this *YellowBoard) SetRemote(remote console.Remote) {
+	this.Console.Remote = remote
 }
