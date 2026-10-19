@@ -98,10 +98,10 @@ func NewYellowBoard() Board {
 	board.Upload.Reply = func(payload []byte) { board.Serial.Write(upload.Frame(payload)) }
 	board.Console.Write = board.Serial.WriteString
 
-	for i, pin := range [KeyCount]machine.Pin{machine.PC0, machine.PC1, machine.PC2, machine.PB3, machine.PA14, machine.PA13, machine.PA11} {
-		board.Keys[i] = component.NewButton(pin)
-		bit := uint8(1) << i
-		board.Keys[i].OnPress(func() { pendingKeys |= bit })
+	for index, pin := range [KeyCount]machine.Pin{machine.PC0, machine.PC1, machine.PC2, machine.PB3, machine.PA14, machine.PA13, machine.PA11} {
+		board.Keys[index] = component.NewButton(pin)
+		bit := uint8(1) << index
+		board.Keys[index].OnPress(func() { pendingKeys |= bit })
 	}
 	board.Scanner.Start()
 	board.Microphone.Start()
