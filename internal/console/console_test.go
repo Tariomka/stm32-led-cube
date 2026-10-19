@@ -72,7 +72,11 @@ func TestSetSerialReboots(t *testing.T) {
 
 func TestDemux(t *testing.T) {
 	var lines []string
-	d := Demux{Command: func(line string) { lines = append(lines, line) }}
+	var payloads [][]byte
+	d := Demux{
+		Command: func(line string) { lines = append(lines, line) },
+		Frame:   func(p []byte) { payloads = append(payloads, append([]byte{}, p...)) },
+	}
 	var passed []byte
 	feed := func(data []byte, now uint32) {
 		for _, b := range data {
@@ -85,12 +89,16 @@ func TestDemux(t *testing.T) {
 	frame := []byte{0xAA, 1, 0, 3, '#', '?', 'x', 1, 2, 3, 4, 0x55}
 	feed([]byte("SGFuZHNoYWtl"), 0)
 	feed([]byte("#?reboot?!"), 10)
+	feed([]byte{0xA5, 0x05, 2, 37, 0, 0xA5 ^ 0x05 ^ 2 ^ 37 ^ 0x55, 0x55}, 15)
 	feed(frame, 20)
 	feed([]byte("#?help"), 30)
 	feed([]byte("?!"), 2000) // too late: dropped
 
 	if len(lines) != 1 || lines[0] != "reboot" {
 		t.Errorf("lines = %q", lines)
+	}
+	if len(payloads) != 1 || string(payloads[0]) != string([]byte{37, 0}) {
+		t.Errorf("payloads = % X", payloads)
 	}
 	if want := append([]byte("SGFuZHNoYWtl"), frame...); string(passed) != string(want)+"?!" {
 		t.Errorf("passed = %q", passed)

@@ -32,7 +32,10 @@ Logs: `.agent/live_testing/` (original at 921600 baud, ours at 115200).
 - [x] Boot log matches the expected lines.
 - [x] EEPROM settings survive a power cycle. Pause and display off are now saved too (they weren't before); a saved pause shows the first frame, then pauses.
 - [x] **Console** (`console.txt` logs, ours vs original): Help (same layout, English texts), ReBoot, Test, RegList, SetReg, GetReg all behave like the original.
-- [ ] Console leftovers: power-cycle after `SetReg name LedCube`, then `GetReg name` (must survive: proves the flash write); `ReadMem 0x08000000 0 32`; `DelReg name`; `ClrReg`.
+- [ ] Console leftovers: power-cycle after `SetReg name LedCube`, then `GetReg name` (must survive: proves the flash write); `ReadMem 0x08000000 0 32`; `DelReg name`; `ClrReg`. Note: the flash layout changed (registry stays at `0x0807F000`), so the registry should still be there after reflashing.
+- [ ] **Go shows**: Dynamic (11), Audio (01) and Test (10) now run from Go functions instead of the embedded show data. They should look exactly the same.
+- [ ] **Text mode (00)**: with nothing uploaded the cube stays dark and the log says `No uploaded show`.
+- [ ] **Upload**: in "3D Software - RGB" export `Update.hex` (or use a demo hex from `.agent/external/3D Software - RGB Cube/`), run `scripts\upload.cmd COM4` (close the terminal/monitor first), pick the file and download. Expect `Show upload started` … `Show upload OK` on the console (~2-3 min), then in Text mode `Uploaded show: N cartoons` and the show playing; it must survive a power cycle.
 - [x] Original-style log messages and pause/display off restored after a power cycle.
 - [ ] **Cascade**: needs a second cube. Connect cube A's jack TX to cube B's RX, power both together. B must print `DeviceType=0,DeviceNum=1` and play in step with A, following A's keys.
 

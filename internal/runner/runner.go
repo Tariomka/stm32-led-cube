@@ -8,9 +8,11 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/controller"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
+	"github.com/Tariomka/stm32-led-cube/internal/engine/keyframe"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/player"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/render"
 	"github.com/Tariomka/stm32-led-cube/internal/settings"
+	"github.com/Tariomka/stm32-led-cube/internal/show"
 )
 
 type Runner interface {
@@ -27,10 +29,10 @@ type CubeRunner struct {
 	Player  *player.Player
 	Tracker *controller.StateTracker
 
-	shows  *blob.Blob
-	canvas render.Canvas
-	group  int
-	saveAt time.Time // when to persist the settings, zero if nothing changed
+	uploaded *blob.Blob // show data uploaded from the PC, played in Text mode; nil if none
+	canvas   render.Canvas
+	group    show.Group
+	saveAt   time.Time // when to persist the settings, zero if nothing changed
 	// pauseAfterFrame restores a saved pause once the first frame is on the cube, so it isn't blank
 	pauseAfterFrame bool
 
@@ -43,21 +45,15 @@ func NewRunner(config RunnerConfig) Runner {
 		return nil
 	}
 
-	shows, err := blob.Parse(config.Shows)
-	if err != nil {
-		println("show data:", err.Error())
-		global.HandleFatal()
-	}
-
 	board := controller.NewYellowBoard()
 	runner := &CubeRunner{
 		Board:   board,
 		Tracker: controller.NewStateTracker(),
-		shows:   shows,
 		canvas:  render.Canvas{Displays: []render.Display{render.NewDisplay(0, 0, 0, 8, 8, 8)}},
 		group:   board.ShowGroup(),
 	}
-	runner.Player = player.New(shows, &runner.canvas, runner.group)
+	show.SetMissing(func(kind, name string) { println("Not found " + kind + ":'" + name + "'") })
+	runner.Player = player.New(runner.groupShow(), &runner.canvas)
 	runner.Player.Log = func(msg string) { println(msg) }
 	runner.Player.AudioFrame = board.AudioLevel
 	runner.Player.ADC = func(channel int, raw bool) int {
@@ -72,11 +68,48 @@ func NewRunner(config RunnerConfig) Runner {
 		runner.Player.PlayAll = saved.PlayAll
 		runner.Player.DisplayOff = saved.DisplayOff
 		runner.pauseAfterFrame = saved.Paused
-		if int(saved.Group) == runner.group {
+		if show.Group(saved.Group) == runner.group {
 			runner.Player.Select(int(saved.Cartoon))
 		}
 	}
+	board.OnUpload(runner.uploadStarted, runner.uploadFinished)
 	return runner
+}
+
+// groupShow is the built-in show of the DIP group, or the uploaded show in Text mode.
+func (this *CubeRunner) groupShow() player.Show {
+	if built := show.Show(this.group); built != nil {
+		return built
+	}
+	b, err := blob.Parse(this.Board.UploadedShow())
+	if err != nil {
+		this.uploaded = nil
+		println("No uploaded show")
+		return &keyframe.Show{Keys: show.Keys}
+	}
+	this.uploaded = b
+	uploaded := player.NewBlobShow(b, 0, 1, 2, 3)
+	println("Uploaded show: " + strconv.Itoa(uploaded.Count()) + " cartoons")
+	return uploaded
+}
+
+// uploadStarted stops playing the show slot before the upload rewrites it.
+func (this *CubeRunner) uploadStarted() {
+	if this.group == show.Text {
+		this.uploaded = nil
+		this.Player.SetShow(&keyframe.Show{Keys: show.Keys})
+	}
+}
+
+func (this *CubeRunner) uploadFinished(ok bool) {
+	if ok {
+		println("Show upload OK")
+	} else {
+		println("Show upload failed")
+	}
+	if this.group == show.Text {
+		this.Player.SetShow(this.groupShow())
+	}
 }
 
 func (this *CubeRunner) saveSettings() {
@@ -94,7 +127,7 @@ func (this *CubeRunner) saveSettings() {
 	}
 }
 
-// action runs a key function of the original shows and schedules saving the settings.
+// action runs a key function of the shows and schedules saving the settings.
 func (this *CubeRunner) action(run func()) {
 	if this.Tracker.CurrentMode != controller.OnboardMode {
 		return
@@ -122,12 +155,17 @@ func (this *CubeRunner) Start() {
 }
 
 // placeDisplay positions this cube in the show canvas by its cascade number, like the original.
+// The built-in shows are for one cube at the origin; uploaded show data has its own table.
 func (this *CubeRunner) placeDisplay() {
-	count, number := this.shows.DisplayCount(), this.link.Number
+	count, number := 1, this.link.Number
 	var display blob.Display
-	if number < count {
-		display = this.shows.Display(number)
-	} else {
+	if this.uploaded != nil {
+		count = this.uploaded.DisplayCount()
+		if number < count {
+			display = this.uploaded.Display(number)
+		}
+	}
+	if number >= count {
 		println("Warn: Pos > Cubes, " + strconv.Itoa(number) + "," + strconv.Itoa(count))
 	}
 	if display.Dir != 0 {
@@ -158,8 +196,8 @@ func cubeTypeIndex(cubeType string) int {
 	return -1
 }
 
-// runOnboard plays one step of the original shows and waits for its frame time on the show
-// clock (shared by all cascaded cubes), handling input every tick.
+// runOnboard plays one step of the shows and waits for its frame time on the show clock
+// (shared by all cascaded cubes), handling input every tick.
 func (this *CubeRunner) runOnboard() {
 	start := this.clock()
 	rendered, waitMs := this.Player.Step(uint32(start))

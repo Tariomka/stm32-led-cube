@@ -48,33 +48,48 @@ Here's a basic brakedown of the structure of directories:
 │   │   ├── audio # Microphone samples -> 0..63 level for the Audio group
 │   │   ├── blob # Show data blob parser + graph decompression
 │   │   ├── frame # Engine voxels -> MBI5024 bit planes
+│   │   ├── keyframe # Light shows written in Go: keyframed graphs/balls, shapes (ASCII art), palettes
 │   │   ├── oracle # Byte-exact comparison against the vendor Simulator.dll (windows/386 only)
-│   │   ├── player # Cartoon player, key functions, script VM
+│   │   ├── player # Cartoon player (Go shows or uploaded show data), key functions, script VM
 │   │   └── render # Canvas, graphs (rotation), balls, titles
 │   ├── registry # Console key/value registry in the original flash format (host testable)
 │   ├── remote # NEC IR remote decoder + button map (host testable)
 │   ├── runner # Main loop and modes
 │   ├── settings # Player settings record in the EEPROM (host testable)
-│   └── show/original # Original show blob extracted from the vendor firmware
-├── scripts # Windows build/flash/monitor/dump scripts
+│   ├── show # Built-in light shows (the original cartoons as Go functions) and the show modes
+│   │   └── original # Original show data, only for tools/showgen and tests
+│   └── upload # Receives shows from the vendor PC tool (host testable)
+├── scripts # Windows build/flash/monitor/dump/terminal/upload scripts
 ├── targets # Custom TinyGo target for the GD32F103RE (512 KB flash, 64 KB RAM)
-└── tools/fwtool # Extracts a show blob from a vendor firmware hex/bin
+└── tools # fwtool (extracts show data from a vendor hex/bin), showgen (show data -> Go shows)
 ```
 
-## Original shows
+## Light shows
 
-All premade shows of the original firmware run on the Go show engine. The show data is the original blob, embedded byte for byte.
+The premade shows of the original firmware are Go functions in `internal/show` (one per cartoon, generated once from the original show data by `go run ./tools/showgen`; a test checks every frame matches the original). They run on a Go port of the original show engine.
 
-- DIP SW1/SW2 select the show group (Dynamic, Audio, Test, Text).
-- KEY1..KEY7 run the key functions stored in the blob (prev, next, speed+, speed-, pause, play mode, display off).
+DIP SW1/SW2 select the show mode at power-up (`show.Group`):
+
+| SW1 | SW2 | Mode |
+|---|---|---|
+| 1 | 1 | Dynamic: the 41 original animations |
+| 0 | 1 | Audio: 10 cartoons following the microphone |
+| 1 | 0 | Test: LED test patterns |
+| 0 | 0 | Text: shows uploaded from the PC (the original scrolling-text cartoon is not included) |
+
+Uploading: make a show in the iCubeSmart "3D Software - RGB" and export `Update.hex`, then run `scripts\upload.cmd [COMx]`, which starts the vendor "Download Software" at 115200 baud, and download `Update.hex`. The cube keeps only the show data (in flash, kept across power cycles) and plays all its cartoons in Text mode.
+
+Other original features:
+- KEY1..KEY7 run the original key functions (prev, next, speed+, speed-, pause, play mode, display off).
 - Holding KEY6 for 1 second cycles the runner mode (original shows, serial/Pico, debug).
 - Audio group cartoons follow the microphone level (PA0).
 - The kit's 21-key IR remote works like the original: CH- display off, CH+ play mode, VOL-/EQ previous/next, VOL+ pause, >>| speed up, 100+ speed down, >|| speed reset, 200+ replay, 0..9 jump to cartoon 0..9.
 - Speed, play mode, pause, display off and the selected cartoon are kept in the 24C02 EEPROM across power cycles.
 - The original UART console works on UART1 (115200 baud, shared with the Pico link): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself; so does `scripts\terminal.cmd`, an interactive terminal for Windows). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
+- Flash map: firmware up to 350 KB, uploaded show data at `0x08057800` (158 KB), registry at `0x0807F000` (see `targets/gd32f103re.ld`).
 - Cascade: cubes chained over the 3.5 mm jacks (TX to the next cube's RX) find their order at power-up and play in step, following the first cube's keys. It uses the original protocol.
 
-Run the host tests with `go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
+Run the host tests with `go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/... ./internal/show/... ./internal/upload/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
 
 # Getting started
 

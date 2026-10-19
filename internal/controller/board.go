@@ -13,6 +13,8 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/console"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/frame"
 	"github.com/Tariomka/stm32-led-cube/internal/settings"
+	"github.com/Tariomka/stm32-led-cube/internal/show"
+	"github.com/Tariomka/stm32-led-cube/internal/upload"
 )
 
 const KeyCount = 7
@@ -23,7 +25,7 @@ type Board interface {
 	SetBlank(blank bool)             // Turns all LEDs off / back on
 	TakeKeys() uint8                 // Keys pressed since the last call, bit n = KEY(n+1)
 	KeyHeld(key int) bool            // Whether KEY(key+1) is currently held down
-	ShowGroup() int                  // Show group 0..3 selected with DIP SW1/SW2
+	ShowGroup() show.Group           // Show mode selected with DIP SW1/SW2
 	AudioLevel(mode int) int         // Microphone loudness 0..63 (audio cartoon level mode)
 	AudioRaw() int                   // Latest 12-bit microphone sample
 	TakeRemote() int                 // Last IR remote code since the previous call, 0 = none
@@ -32,6 +34,9 @@ type Board interface {
 	CascadePoll(handle func([]byte)) // Passes payloads received from the previous cube
 	LoadSettings() (settings.Settings, bool)
 	CubeType() string // Vendor type string from the EEPROM, e.g. "8x8x8A"
+	// OnUpload sets the callbacks of a show upload from the vendor PC tool
+	OnUpload(started func(), finished func(ok bool))
+	UploadedShow() string // Show slot contents (show data uploaded from the PC)
 	SaveSettings(s settings.Settings) error
 	Send(message string)               // Sends message over UART
 	Receive() []byte                   // Receives data from UART
@@ -46,6 +51,7 @@ type YellowBoard struct {
 	Serial        *component.SerialPort  // UART1, RX - PA10, TX - PA9: console + Pico link
 	UartProcessor *network.UartProcessor // Pico link protocol on Serial
 	Console       *console.Console       // Vendor-style console on Serial
+	Upload        *upload.Receiver       // Show upload from the vendor PC tool on Serial
 	EEPROM        component.EEPROM       // 24C02, SCL - PB6, SDA - PB7
 	Cascade       *component.CascadePort // 3.5 mm jacks, TX - PA2, RX - PA3
 
@@ -68,6 +74,8 @@ type YellowBoard struct {
 
 	Microphone *component.Microphone       // PA0
 	Infrared   *component.InfraredReceiver // PC6
+
+	rebootAt time.Time // pending console ReBoot, zero if none
 }
 
 // Keys pressed in interrupt context, consumed by TakeKeys
@@ -104,7 +112,9 @@ func NewYellowBoard() Board {
 		Infrared:    component.NewInfraredReceiver(machine.PC6),
 	}
 	board.Console = &console.Console{Device: &board, Registry: loadRegistry()}
-	board.Serial = component.NewSerialPort(machine.UART1, board.Console.Run)
+	board.Upload = &upload.Receiver{Storage: &component.ShowSlotStorage{}}
+	board.Serial = component.NewSerialPort(machine.UART1, board.Console.Run, board.Upload.Frame)
+	board.Upload.Reply = func(payload []byte) { board.Serial.Write(upload.Frame(payload)) }
 	board.Console.Write = board.Serial.WriteString
 	board.UartProcessor = network.NewUartProcessor(board.Serial)
 
@@ -129,7 +139,7 @@ func NewYellowBoard() Board {
 	global.HandleStartup = func() {
 		println("Led Cube is starting up")
 		println("T='" + board.CubeType() + "'")
-		println("Config1=" + strconv.Itoa(board.ShowGroup()) + ",Config2=" + strconv.Itoa(board.config2()))
+		println("Config1=" + strconv.Itoa(int(board.ShowGroup())) + ",Config2=" + strconv.Itoa(board.config2()))
 		board.LedsOnboard.BlinkStartup()
 	}
 	global.HandlePrint = board.Send
@@ -170,17 +180,17 @@ func (this *YellowBoard) KeyHeld(key int) bool {
 
 // ShowGroup follows the base board label: SW1/SW2 = 1/1 dynamic, 0/1 audio, 1/0 test, 0/0 text,
 // where 1 means the pin reads high (switch off).
-func (this *YellowBoard) ShowGroup() int {
+func (this *YellowBoard) ShowGroup() show.Group {
 	sw1, sw2 := this.Switch1.Get(), this.Switch2.Get()
 	switch {
 	case sw1 && sw2:
-		return 0
+		return show.Dynamic
 	case !sw1 && sw2:
-		return 1
+		return show.Audio
 	case sw1 && !sw2:
-		return 2
+		return show.Test
 	}
-	return 3
+	return show.Text
 }
 
 // config2 reads SW3/SW4 like the original (bit set = switch ON); it only prints it.

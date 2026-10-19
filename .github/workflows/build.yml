@@ -27,7 +27,7 @@ jobs:
         tinygo version
 
     - name: Test engine
-      run: go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/...
+      run: go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/... ./internal/show/... ./internal/upload/...
 
     - name: Build
       run: tinygo build -o build.hex -target targets/gd32f103re.json -opt s -panic print -gc conservative -size full ./cmd/8x8_rgb_cube

@@ -1,0 +1,51 @@
+help
+Commands explain:-----------------
+Help            :Commands explain
+ReBoot          :;System reset
+ReadMem         :ReadMem [address] [offset] [count] ;Read memory
+SetReg          :SetReg [key] [value] ;Write registry
+GetReg          :GetReg [key] ;Read registry
+RegList         :;List all registry entries
+DelReg          :DelReg [key] ;Delete one entry
+ClrReg          :;Delete all registry entries
+SetType         :SetType [type] ;Set the cube type
+SetSerial       :SetSerial [serial] ;Set the cube serial number
+Test            :Test
+reglist
+DoGetRegeditList:-----------------
+Regedit Count = 1
+name=LedCube
+readmem 0x08000000 0 32
+Help            :Commands explain
+delreg name
+DoDeleteRegedit:-----------------
+Delete Regedit:name OK!
+reglist
+DoGetRegeditList:-----------------
+Regedit Count = 0
+setreg name CUBE
+DoWriteRegedit:-----------------
+WriteReg:name OK!
+reglist
+DoGetRegeditList:-----------------
+Regedit Count = 1
+name=CUBE
+clrreg
+DoCleanRegeditList:-----------------
+Clean Regedit OK!
+reglist
+DoGetRegeditList:-----------------
+Regedit Count = 0
+Led Cube is starting up
+T='8x32x8b'
+Config1=0,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0,type=7
+Uploaded show: 18 cartoons
+Led Cube is starting up
+T='8x32x8b'
+Config1=3,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0,type=7

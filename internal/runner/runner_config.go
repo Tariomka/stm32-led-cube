@@ -1,7 +1,5 @@
 package runner
 
-import "github.com/Tariomka/stm32-led-cube/internal/show/original"
-
 type Size uint8
 
 const (
@@ -21,7 +19,6 @@ type RunnerConfig struct {
 	BaseSize Size
 	Height   Size
 	LedType  LedType
-	Shows    string // Show data blob in the iCubeSmart PC software format
 }
 
 func NewConfig() RunnerConfig {
@@ -29,6 +26,5 @@ func NewConfig() RunnerConfig {
 		BaseSize: Size8,
 		Height:   Size8,
 		LedType:  RGB,
-		Shows:    original.Blob,
 	}
 }

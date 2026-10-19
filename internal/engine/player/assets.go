@@ -116,8 +116,8 @@ func drawGraph(prop blob.Prop, frame int, canvas *render.Canvas, a *assets) int 
 		frame -= prop.Start
 	}
 	axis, mode := int(uint16(field(8))), int(uint16(field(9)))
-	graphName := resolveName(blob.Name(data, 0), frame, prop.Start)
-	paletteName := resolveName(blob.Name(data, 16), frame, prop.Start)
+	graphName := blob.ResolveName(blob.Name(data, 0), frame, prop.Start)
+	paletteName := blob.ResolveName(blob.Name(data, 16), frame, prop.Start)
 	g, ok := a.graph(graphName)
 	if !ok {
 		return frame
@@ -153,9 +153,9 @@ func drawBall(prop blob.Prop, frame int, canvas *render.Canvas) int {
 func drawTitle(prop blob.Prop, frame int, canvas *render.Canvas, assetsObject *assets) int {
 	data := prop.Data
 	frame -= prop.Start
-	graphName := resolveName(blob.Name(data, 0), frame, prop.Start)
-	paletteName := resolveName(blob.Name(data, 16), frame, prop.Start)
-	indexName := resolveName(blob.Name(data, 32), frame, prop.Start)
+	graphName := blob.ResolveName(blob.Name(data, 0), frame, prop.Start)
+	paletteName := blob.ResolveName(blob.Name(data, 16), frame, prop.Start)
+	indexName := blob.ResolveName(blob.Name(data, 32), frame, prop.Start)
 	g, ok := assetsObject.graph(graphName)
 	if !ok {
 		return frame

@@ -81,7 +81,7 @@ func play(t *testing.T, group, n int, keys map[int]int) [][]byte {
 		t.Fatal(err)
 	}
 	canvas := &render.Canvas{Displays: []render.Display{render.NewDisplay(0, 0, 0, 8, 8, 8)}}
-	p := player.New(b, canvas, group)
+	p := player.New(player.NewBlobShow(b, group), canvas)
 	var frames [][]byte
 	for len(frames) < n {
 		rendered, _ := p.Step(0)

@@ -97,6 +97,7 @@ const (
 
 type vm struct {
 	player  *Player
+	assets  *assets
 	mem     []byte
 	bodyLen int
 	a, b    int32
@@ -109,8 +110,8 @@ type vm struct {
 	failed  bool
 }
 
-func newVM(p *Player, body string) *vm {
-	v := &vm{player: p, mem: make([]byte, bodyBase+len(body)), bodyLen: len(body)}
+func newVM(p *Player, body string, a *assets) *vm {
+	v := &vm{player: p, assets: a, mem: make([]byte, bodyBase+len(body)), bodyLen: len(body)}
 	copy(v.mem[bodyBase:], body)
 	v.sp, v.heap = stackBase, heapBase
 	if len(body) >= 8 {
@@ -376,12 +377,12 @@ func (this *vm) system(fn int, now uint32) (int, bool) {
 		p.canvas.Line(int(this.arg(1)), int(this.arg(2)), int(this.arg(3)), int(this.arg(4)), int(this.arg(5)), int(this.arg(6)),
 			byte(this.arg(7)), int(this.arg(8)))
 	case sysGraph:
-		g, ok := p.assets.graph(this.str(this.arg(1)))
+		g, ok := this.assets.graph(this.str(this.arg(1)))
 		if !ok {
 			break
 		}
 
-		pal, ok := p.assets.palette(this.str(this.arg(2)))
+		pal, ok := this.assets.palette(this.str(this.arg(2)))
 		if !ok {
 			break
 		}
@@ -389,7 +390,7 @@ func (this *vm) system(fn int, now uint32) (int, bool) {
 		p.canvas.Graph(g, pal, int(this.arg(3)), int(this.arg(4)), int(this.arg(5)), int(this.arg(6)), int(this.arg(7)), int(this.arg(8)))
 	case sysGetIndex:
 		this.a = 0
-		if idx, ok := p.assets.index(this.str(this.arg(1))); ok {
+		if idx, ok := this.assets.index(this.str(this.arg(1))); ok {
 			this.a = int32(blob.IndexValue(idx, int(this.arg(2)), int(this.arg(3))))
 		}
 	case sysGetRandomColor:

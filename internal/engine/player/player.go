@@ -37,10 +37,9 @@ const defaultSpeed = 4
 const pollMs = 100
 
 type Player struct {
-	blob     *blob.Blob
-	canvas   *render.Canvas
-	assets   *assets
-	cartoons []blob.Cartoon
+	show    Show
+	canvas  *render.Canvas
+	cartoon Cartoon // the running cartoon
 
 	current int
 	running bool // current cartoon has been started
@@ -71,17 +70,19 @@ type Player struct {
 	Log func(msg string)
 }
 
-// New creates a player for show group 0..3 drawing into canvas.
-func New(blob *blob.Blob, canvas *render.Canvas, group int) *Player {
-	p := &Player{blob: blob, canvas: canvas, assets: newAssets(blob)}
-	p.assets.Missing = func(kind, name string) { p.log("Not found " + kind + ":'" + name + "'") }
-	p.SetGroup(group)
+// New creates a player for show drawing into canvas.
+func New(show Show, canvas *render.Canvas) *Player {
+	p := &Player{canvas: canvas}
+	p.SetShow(show)
 	return p
 }
 
-// SetGroup restarts the player on another show group with default settings.
-func (this *Player) SetGroup(group int) {
-	this.cartoons = this.blob.Group(group)
+// SetShow restarts the player on another show with default settings.
+func (this *Player) SetShow(show Show) {
+	if blobShow, ok := show.(*BlobShow); ok {
+		blobShow.assets.Missing = func(kind, name string) { this.log("Not found " + kind + ":'" + name + "'") }
+	}
+	this.show, this.cartoon = show, nil
 	this.current, this.running, this.change = 0, false, false
 	this.PlayAll, this.Paused, this.DisplayOff = true, false, false
 	this.speed = defaultSpeed
@@ -100,9 +101,9 @@ func (this *Player) SetSpeed(speed int) {
 	}
 }
 
-// Select restarts the show on cartoon n of the group.
+// Select restarts the show on cartoon n.
 func (this *Player) Select(n int) {
-	if n >= 0 && n < len(this.cartoons) {
+	if n >= 0 && n < this.show.Count() {
 		this.current, this.change = n, true
 	}
 }
@@ -120,19 +121,20 @@ func (this *Player) Step(now uint32) (rendered bool, waitMs int) {
 		return false, pollMs
 	}
 
-	if len(this.cartoons) == 0 {
+	count := this.show.Count()
+	if count == 0 {
 		return false, pollMs
 	}
 
-	for tries := 0; tries <= 2*len(this.cartoons)+1; tries++ {
+	for tries := 0; tries <= 2*count+1; tries++ {
 		if this.change {
 			this.change, this.running, this.vm = false, false, nil
 		}
-		c := this.cartoons[this.current]
 		if !this.running {
-			this.start(c, now)
+			this.start(now)
 		}
-		switch c.Type {
+		c := this.cartoon
+		switch c.Kind() {
 		case blob.Normal:
 			if rendered, waitMs = this.stepNormal(c); rendered {
 				return
@@ -143,7 +145,7 @@ func (this *Player) Step(now uint32) (rendered bool, waitMs int) {
 			}
 		case blob.Script:
 			var done bool
-			if rendered, waitMs, done = this.stepScript(c, now); !done {
+			if rendered, waitMs, done = this.stepScript(now); !done {
 				return
 			}
 		}
@@ -153,15 +155,18 @@ func (this *Player) Step(now uint32) (rendered bool, waitMs int) {
 	return false, pollMs
 }
 
-func (this *Player) start(cartoon blob.Cartoon, now uint32) {
+func (this *Player) start(now uint32) {
+	cartoon := this.show.Cartoon(this.current)
+	this.cartoon = cartoon
 	this.running, this.loop, this.frame, this.drawn, this.until = true, 0, 0, false, 0
-	if cartoon.Type == blob.Audio {
+	if cartoon.Kind() == blob.Audio {
 		if secs := cartoon.Header().FrameCount; secs != 0 {
 			this.until = now + uint32(secs)*1000
 		}
 	}
-	if cartoon.Type == blob.Script {
-		this.vm = newVM(this, cartoon.Body)
+	if script, ok := cartoon.(scriptCartoon); ok && cartoon.Kind() == blob.Script {
+		body, a := script.script()
+		this.vm = newVM(this, body, a)
 	}
 }
 
@@ -169,7 +174,7 @@ func (this *Player) start(cartoon blob.Cartoon, now uint32) {
 func (this *Player) finish() {
 	this.running, this.vm = false, nil
 	if this.PlayAll {
-		this.current = (this.current + 1) % len(this.cartoons)
+		this.current = (this.current + 1) % this.show.Count()
 	}
 }
 
@@ -177,7 +182,7 @@ func (this *Player) frameWait(delay int) int {
 	return delay * 10 / speedTenths[this.speed]
 }
 
-func (this *Player) stepNormal(cartoon blob.Cartoon) (bool, int) {
+func (this *Player) stepNormal(cartoon Cartoon) (bool, int) {
 	header := cartoon.Header()
 	loops := int(uint16(header.Loop))
 	if header.FrameCount <= 0 || this.loop >= loops {
@@ -185,7 +190,7 @@ func (this *Player) stepNormal(cartoon blob.Cartoon) (bool, int) {
 	}
 
 	this.canvas.Clear(0)
-	renderFrame(cartoon, this.frame, this.canvas, this.assets)
+	cartoon.Render(this.frame, this.canvas)
 	this.frame++
 	if this.frame >= header.FrameCount {
 		this.frame = 0
@@ -194,7 +199,7 @@ func (this *Player) stepNormal(cartoon blob.Cartoon) (bool, int) {
 	return true, this.frameWait(header.Delay)
 }
 
-func (this *Player) stepAudio(cartoon blob.Cartoon, now uint32) (bool, int) {
+func (this *Player) stepAudio(cartoon Cartoon, now uint32) (bool, int) {
 	if this.drawn && this.until != 0 && int32(now-this.until) >= 0 {
 		return false, 0
 	}
@@ -204,14 +209,14 @@ func (this *Player) stepAudio(cartoon blob.Cartoon, now uint32) (bool, int) {
 		frame = this.AudioFrame(int(cartoon.Header().Loop))
 	}
 	this.canvas.Clear(0)
-	renderFrame(cartoon, frame, this.canvas, this.assets)
+	cartoon.Render(frame, this.canvas)
 	this.drawn = true
 	return true, this.frameWait(cartoon.Header().Delay)
 }
 
 // Key runs the configured function of KEY1..KEY7 (key 0..6).
 func (this *Player) Key(key int) {
-	this.Action(this.blob.KeyFunction(key))
+	this.Action(this.show.KeyFunction(key))
 }
 
 func (this *Player) Action(action int) {
@@ -224,7 +229,7 @@ func (this *Player) Action(action int) {
 		return
 	}
 
-	n := len(this.cartoons)
+	n := this.show.Count()
 	if n == 0 {
 		return
 	}
@@ -294,7 +299,7 @@ func boolText(value bool) string {
 }
 
 // stepScript runs the script until it waits, ends or uses up its instruction budget.
-func (this *Player) stepScript(cartoon blob.Cartoon, now uint32) (rendered bool, waitMs int, done bool) {
+func (this *Player) stepScript(now uint32) (rendered bool, waitMs int, done bool) {
 	v := this.vm
 	if v == nil {
 		return false, 0, true

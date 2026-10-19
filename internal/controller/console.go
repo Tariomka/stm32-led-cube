@@ -2,6 +2,7 @@ package controller
 
 import (
 	"device/arm"
+	"time"
 	"unsafe"
 
 	"github.com/Tariomka/stm32-led-cube/internal/component"
@@ -17,8 +18,12 @@ const (
 
 // The YellowBoard is the console.Device of the vendor-style UART console.
 
+// rebootDelay lets the vendor PC tool's upload connect frame, sent right after its "reboot"
+// command, cancel the reboot: the original rebooted into its bootloader, we take the upload.
+const rebootDelay = 300 * time.Millisecond
+
 func (this *YellowBoard) Reboot() {
-	arm.SystemReset()
+	this.rebootAt = time.Now().Add(rebootDelay)
 }
 
 // ReadMemory reads flash, SRAM and system memory; peripherals are refused because reads
@@ -89,4 +94,20 @@ func (this *YellowBoard) SaveSettings(s settings.Settings) error {
 
 func (this *YellowBoard) PollSerial() {
 	this.Serial.Poll()
+	if !this.rebootAt.IsZero() && time.Now().After(this.rebootAt) {
+		arm.SystemReset()
+	}
+}
+
+func (this *YellowBoard) OnUpload(started func(), finished func(ok bool)) {
+	this.Upload.Started = func() {
+		this.rebootAt = time.Time{}
+		println("Show upload started")
+		started()
+	}
+	this.Upload.Finished = finished
+}
+
+func (this *YellowBoard) UploadedShow() string {
+	return component.ShowSlotData()
 }

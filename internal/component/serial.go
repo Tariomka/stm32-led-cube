@@ -7,8 +7,9 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/console"
 )
 
-// SerialPort shares UART1 between the vendor-style console and the Pico link: console
-// commands are executed as they arrive, everything else is buffered for the link reader.
+// SerialPort shares UART1 between the vendor-style console, the vendor tools' binary frames and
+// the Pico link: console commands and frames are handled as they arrive, everything else is
+// buffered for the link reader.
 type SerialPort struct {
 	uart    *machine.UART
 	demux   console.Demux
@@ -18,9 +19,9 @@ type SerialPort struct {
 	size    int
 }
 
-func NewSerialPort(uart *machine.UART, command func(line string)) *SerialPort {
+func NewSerialPort(uart *machine.UART, command func(line string), frame func(payload []byte)) *SerialPort {
 	uart.Configure(machine.UARTConfig{})
-	return &SerialPort{uart: uart, demux: console.Demux{Command: command}, start: time.Now()}
+	return &SerialPort{uart: uart, demux: console.Demux{Command: command, Frame: frame}, start: time.Now()}
 }
 
 // Poll moves received bytes through the demultiplexer; call it regularly.

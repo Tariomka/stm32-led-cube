@@ -49,13 +49,9 @@ type Console struct {
 	Write func(s string)
 }
 
-func (this *Console) println(s string) {
-	this.Write(s + "\r\n")
-}
+func (this *Console) println(s string) { this.Write(s + "\r\n") }
 
-func (this *Console) section(name string) {
-	this.println(name + ":-----------------")
-}
+func (this *Console) section(name string) { this.println(name + ":-----------------") }
 
 // Run executes one command line ("name arg1 arg2 ...", name is case insensitive).
 func (this *Console) Run(line string) {

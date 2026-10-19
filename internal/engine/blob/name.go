@@ -1,11 +1,11 @@
-package player
+package blob
 
 import "strconv"
 
-// resolveName expands a resource name containing a "$" expression, e.g. "Fly_$C+1".
+// ResolveName expands a resource name containing a "$" expression, e.g. "Fly_$C+1".
 // After the '$': 'F' = frame, 'C' = frame - start, then any number of "<op><number>" terms
 // (+ - * / %), applied left to right. Invalid expressions resolve to "".
-func resolveName(name string, frame, start int) string {
+func ResolveName(name string, frame, start int) string {
 	dollar := -1
 	for i := 0; i < len(name); i++ {
 		if name[i] == '$' {
