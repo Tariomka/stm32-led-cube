@@ -7,6 +7,8 @@
 package player
 
 import (
+	"strconv"
+
 	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
 	"github.com/Tariomka/stm32-led-cube/internal/engine/render"
 )
@@ -233,11 +235,12 @@ func (this *Player) Action(action int) {
 			return
 		}
 
-		this.log("Change Cartoon")
+		this.log("Change Cartoon " + strconv.Itoa(target))
 		this.current, this.change = target, true
 		return
 	}
 
+	// Messages match the original firmware's console output
 	switch action {
 	case ActionReplay:
 		this.log("Replay Cartoon")
@@ -253,28 +256,41 @@ func (this *Player) Action(action int) {
 	case ActionSpeedUp:
 		if this.speed < len(speedTenths)-1 {
 			this.speed++
-			this.log("Add speed")
+			this.log("Add speed to " + this.speedText())
 		}
 	case ActionSpeedReset:
 		if this.speed != defaultSpeed {
 			this.speed = defaultSpeed
-			this.log("Speed reset")
+			this.log("Speed reset to " + this.speedText())
 		}
 	case ActionSpeedDown:
 		if this.speed > 0 {
 			this.speed--
-			this.log("Sub speed")
+			this.log("Sub speed to " + this.speedText())
 		}
 	case ActionPlayModel:
 		this.PlayAll = !this.PlayAll
-		this.log("Play Model")
+		this.log("Play Model=" + boolText(this.PlayAll))
 	case ActionPause:
 		this.Paused = !this.Paused
-		this.log("Pause")
+		this.log("DeviceSuppend:" + boolText(this.Paused))
 	case ActionDisplayOff:
 		this.DisplayOff = !this.DisplayOff
-		this.log("Display off")
+		this.log("Display off=" + boolText(this.DisplayOff))
 	}
+}
+
+// speedText formats the speed factor like "%.2f".
+func (this *Player) speedText() string {
+	tenths := speedTenths[this.speed]
+	return strconv.Itoa(tenths/10) + "." + strconv.Itoa(tenths%10) + "0"
+}
+
+func boolText(value bool) string {
+	if value {
+		return "1"
+	}
+	return "0"
 }
 
 // stepScript runs the script until it waits, ends or uses up its instruction budget.

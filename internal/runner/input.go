@@ -82,7 +82,10 @@ func (this *CubeRunner) heldKeys() uint8 {
 func (this *CubeRunner) runKeys(edges uint8) {
 	for key := 0; key < controller.KeyCount; key++ {
 		if edges&(1<<key) != 0 {
-			this.action(func() { this.Player.Key(key) })
+			this.action(func() {
+				println("DoKey" + strconv.Itoa(key+1))
+				this.Player.Key(key)
+			})
 		}
 	}
 }

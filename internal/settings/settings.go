@@ -11,11 +11,20 @@ const (
 )
 
 type Settings struct {
-	Speed   uint8
-	PlayAll bool
-	Group   uint8 // DIP group the cartoon belongs to
-	Cartoon uint8
+	Speed      uint8
+	PlayAll    bool
+	Paused     bool
+	DisplayOff bool
+	Group      uint8 // DIP group the cartoon belongs to
+	Cartoon    uint8
 }
+
+// Bits of the flags byte
+const (
+	flagPlayAll = 1 << iota
+	flagPaused
+	flagDisplayOff
+)
 
 func checksum(bytes []byte) byte {
 	var sum byte
@@ -28,7 +37,13 @@ func checksum(bytes []byte) byte {
 func (this Settings) Marshal() [Size]byte {
 	bytes := [Size]byte{magic0, magic1, version, this.Speed, 0, this.Group, this.Cartoon}
 	if this.PlayAll {
-		bytes[4] = 1
+		bytes[4] |= flagPlayAll
+	}
+	if this.Paused {
+		bytes[4] |= flagPaused
+	}
+	if this.DisplayOff {
+		bytes[4] |= flagDisplayOff
 	}
 	bytes[Size-1] = checksum(bytes[:Size-1])
 	return bytes
@@ -40,5 +55,13 @@ func Unmarshal(bytes [Size]byte) (Settings, bool) {
 		return Settings{}, false
 	}
 
-	return Settings{Speed: bytes[3], PlayAll: bytes[4] != 0, Group: bytes[5], Cartoon: bytes[6]}, true
+	flags := bytes[4]
+	return Settings{
+		Speed:      bytes[3],
+		PlayAll:    flags&flagPlayAll != 0,
+		Paused:     flags&flagPaused != 0,
+		DisplayOff: flags&flagDisplayOff != 0,
+		Group:      bytes[5],
+		Cartoon:    bytes[6],
+	}, true
 }

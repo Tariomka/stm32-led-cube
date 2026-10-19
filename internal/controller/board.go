@@ -31,6 +31,7 @@ type Board interface {
 	CascadeSend(payload []byte)      // Sends a payload to the next cube
 	CascadePoll(handle func([]byte)) // Passes payloads received from the previous cube
 	LoadSettings() (settings.Settings, bool)
+	CubeType() string // Vendor type string from the EEPROM, e.g. "8x8x8A"
 	SaveSettings(s settings.Settings) error
 	Send(message string)               // Sends message over UART
 	Receive() []byte                   // Receives data from UART

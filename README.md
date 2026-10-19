@@ -70,8 +70,8 @@ All premade shows of the original firmware run on the Go show engine. The show d
 - Holding KEY6 for 1 second cycles the runner mode (original shows, serial/Pico, debug).
 - Audio group cartoons follow the microphone level (PA0).
 - The kit's 21-key IR remote works like the original: CH- display off, CH+ play mode, VOL-/EQ previous/next, VOL+ pause, >>| speed up, 100+ speed down, >|| speed reset, 200+ replay, 0..9 jump to cartoon 0..9.
-- Speed, play mode and the selected cartoon are kept in the 24C02 EEPROM across power cycles.
-- The original UART console works on UART1 (115200 baud, shared with the Pico link): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
+- Speed, play mode, pause, display off and the selected cartoon are kept in the 24C02 EEPROM across power cycles.
+- The original UART console works on UART1 (115200 baud, shared with the Pico link): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself; so does `scripts\terminal.cmd`, an interactive terminal for Windows). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
 - Cascade: cubes chained over the 3.5 mm jacks (TX to the next cube's RX) find their order at power-up and play in step, following the first cube's keys. It uses the original protocol.
 
 Run the host tests with `go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).

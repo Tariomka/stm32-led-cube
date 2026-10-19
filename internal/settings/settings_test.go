@@ -3,7 +3,7 @@ package settings
 import "testing"
 
 func TestRoundTrip(t *testing.T) {
-	s := Settings{Speed: 6, PlayAll: true, Group: 2, Cartoon: 3}
+	s := Settings{Speed: 6, PlayAll: true, Paused: true, DisplayOff: true, Group: 2, Cartoon: 3}
 	got, ok := Unmarshal(s.Marshal())
 	if !ok || got != s {
 		t.Errorf("got %+v, %v", got, ok)

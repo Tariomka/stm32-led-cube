@@ -92,24 +92,23 @@ Runner loop:
 
 ## Status
 
-### Confirmed on hardware
+### Confirmed on hardware (2026-10-19, logs in `.agent/live_testing/`)
 
 - KEY5 fix (`gpio_diag`)
 - Display, orientation and colors
 - All 4 DIP groups
-- All keys
+- All keys, including through the cascade key mask; no freezes after the EXTI priority change
+- Audio group, IR remote (all buttons), boot log lines
+- EEPROM settings (incl. pause/display off) survive a power cycle; original-style log messages
+- Console: Help, ReBoot, Test, RegList, SetReg, GetReg match the original (`.agent/live_testing/*console.txt`)
+
+Hardware facts: the base's Type-C is power only (no USB serial); there's no SD slot. The EEPROM type is `8x32x8b`, so the original runs as type 7 (`8x32x8B`). The original console is at 921600 baud and its boot log is in `.agent/live_testing/original output 921600.txt`.
 
 ### Implemented but NOT yet checked on hardware
 
 The checklist is in `.agent/documentation/what-i-need-from-you.md`:
 
-- Audio group reacts to sound.
-- IR remote buttons.
-- Keys now act through the cascade key mask (up to 10 ms later); check short taps.
-- No freezes after the EXTI priority change.
-- Boot log lines.
-- Console: `#?Help?!`, SetReg / power-cycle / GetReg, ReadMem, ReBoot.
-- EEPROM settings survive a power cycle.
+- Console leftovers: registry surviving a power cycle (flash write), ReadMem, DelReg, ClrReg. Use `scripts\terminal.cmd` (`tinygo monitor` can't send).
 - Cascade (needs a second cube).
 
 ### Not ported on purpose
@@ -123,11 +122,7 @@ The checklist is in `.agent/documentation/what-i-need-from-you.md`:
 
 ## Next work (in order)
 
-1. **Act on the user's hardware report** from the checklist above and fix whatever fails. Likely suspects:
-   - EEPROM bit-bang timing or missing pull-ups
-   - flash page write on the GD32 (stalls the display briefly; check that the registry survives)
-   - microphone level scale (the thresholds assume a 12-bit ADC idling at about 1050)
-   - IR timing jitter
+1. **Act on the user's next hardware report** (console via `scripts\terminal.cmd`, the latest build's messages and pause/display-off saving). Likely suspects if the console fails: flash page write on the GD32 (stalls the display briefly; check that the registry survives a power cycle).
 2. **Serial (Pico) mode** (`runner.runSerialLoop` is a placeholder). The sibling projects are in `..\` (one directory up from the repo):
    - `led-common-lib`, v0.4.3: `network.UartProcessor` (frames `AA type len16BE payload crc32BE 55`, handshake `"SGFuZHNoYWtl"`, types Message/Bytes/Setting/Ping/Pong) and `led.LedLayout` (8 layers × 24 bytes: G 0-7, B 8-15, R 16-23).
    - `rpi-led-communication`: Pico W, a TCP server that will forward packets to this cube over UART. Forwarding is still a TODO there.

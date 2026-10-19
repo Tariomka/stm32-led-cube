@@ -1,0 +1,4 @@
+PS D:\Git\some_personal_shit\Led_Cube\stm32-led-cube> .\scripts\monitor.cmd COM4
+Connected to COM4. Press Ctrl-C to exit.
+���F��B���O������O�v�G��"�NJ߆JGǇg�gO܅����
+�G.F��F����K�F������K���K��K�G����F������Kg���K��

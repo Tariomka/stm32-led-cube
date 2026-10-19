@@ -1,0 +1,171 @@
+PS D:\Git\some_personal_shit\Led_Cube\stm32-led-cube> tinygo monitor -port COM4 -baudrate 115200 
+Connected to COM4. Press Ctrl-C to exit.
+Led Cube is starting up
+T='8x32x8b'
+Config1=1,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=0,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+IR:90
+Next Cartoon
+IR:90
+Next Cartoon
+IR:90
+Next Cartoon
+IR:2
+Add speed
+IR:2
+Add speed
+IR:2
+Add speed
+IR:2
+Add speed
+IR:2
+Add speed
+IR:2
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:30
+Change Cartoon
+IR:a8
+Pause
+IR:18
+Change Cartoon
+IR:7a
+Change Cartoon
+IR:10
+Change Cartoon
+IR:38
+Change Cartoon
+IR:5a
+Change Cartoon
+IR:52
+Change Cartoon
+IR:4a
+Change Cartoon
+IR:42
+Change Cartoon
+IR:4a
+Change Cartoon
+IR:22
+IR:c2
+Speed reset
+IR:90
+Next Cartoon
+IR:2
+Add speed
+IR:2
+Add speed
+IR:2
+Add speed
+IR:90
+Next Cartoon
+IR:98
+Sub speed
+IR:98
+Sub speed
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=1,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=3,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=0,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+IR:90
+Next Cartoon
+IR:e0
+Previous Cartoon
+IR:e0
+Previous Cartoon
+IR:90
+Next Cartoon
+IR:a8
+Pause
+IR:a8
+Pause
+IR:22
+IR:22
+IR:e2
+Play Model
+IR:e2
+Play Model
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=1,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=0,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+IR:a8
+Pause
+Regedit format error!
+Led Cube is starting up
+T='8x32x8b'
+Config1=0,Config2=0
+DeviceType=1,DeviceNum=0
+Total=1
+Run x=0,y=0,z=0,dir=0
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a8
+Pause
+IR:a2
+Display off
+IR:a2
+Display off
+IR:a2
+Display off
+IR:a2
+Display off
+IR:a2
+Display off
+IR:a2
+Display off

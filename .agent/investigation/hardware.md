@@ -19,6 +19,8 @@ For the schematic-level pin map see [../documentation/schematics/README.md](../d
 - Power: **USB Type-C** ("8x8x8 5V 3A", "8x8x32 5V 7A" pads), large electrolytics, a "TEST LED" header.
 - **Keys** (silkscreen): KEY1 *Previous*, KEY2 *Next*, KEY3 *Speed+*, KEY4 *Speed−*, KEY5 *Run/Pause*, KEY6 *Cycle*, KEY7 *ON/OFF*, plus **RESET**. "The button function can be modified in the 3D software."
 - SW3 (PA15) / SW4 (PA12) are not reachable on this base and read low (ON). The original firmware reads them only to print `Config1 %d Config2 %d` at boot (`FUN_08009d9c`, bit0 = PA15 low, bit1 = PA12 low). Config1 is SW1/SW2 the same way (`FUN_08009d5c`).
+- The base's Type-C is power only (no USB serial). Neither board has an SD-card slot.
+- The 24C02 type record reads `8x32x8b`: the original firmware treats this cube as type 7 (`8x32x8B`, compared case-insensitively), i.e. an 8x32x8 canvas and scan variant 7. The 8x8x8 shows still look right because they only draw the bottom 8 layers.
 - **DIP switch (SW1–SW4)**. SW1/SW2 select the effect group, applied after RESET:
 
   | SW1 | SW2 | Group | Function |

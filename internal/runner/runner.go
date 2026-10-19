@@ -31,6 +31,8 @@ type CubeRunner struct {
 	canvas render.Canvas
 	group  int
 	saveAt time.Time // when to persist the settings, zero if nothing changed
+	// pauseAfterFrame restores a saved pause once the first frame is on the cube, so it isn't blank
+	pauseAfterFrame bool
 
 	input
 }
@@ -68,6 +70,8 @@ func NewRunner(config RunnerConfig) Runner {
 	if saved, ok := board.LoadSettings(); ok {
 		runner.Player.SetSpeed(int(saved.Speed))
 		runner.Player.PlayAll = saved.PlayAll
+		runner.Player.DisplayOff = saved.DisplayOff
+		runner.pauseAfterFrame = saved.Paused
 		if int(saved.Group) == runner.group {
 			runner.Player.Select(int(saved.Cartoon))
 		}
@@ -78,10 +82,12 @@ func NewRunner(config RunnerConfig) Runner {
 func (this *CubeRunner) saveSettings() {
 	this.saveAt = time.Time{}
 	err := this.Board.SaveSettings(settings.Settings{
-		Speed:   uint8(this.Player.Speed()),
-		PlayAll: this.Player.PlayAll,
-		Group:   uint8(this.group),
-		Cartoon: uint8(this.Player.Current()),
+		Speed:      uint8(this.Player.Speed()),
+		PlayAll:    this.Player.PlayAll,
+		Paused:     this.Player.Paused,
+		DisplayOff: this.Player.DisplayOff,
+		Group:      uint8(this.group),
+		Cartoon:    uint8(this.Player.Current()),
 	})
 	if err != nil {
 		println("Save settings error!")
@@ -93,6 +99,7 @@ func (this *CubeRunner) action(run func()) {
 	if this.Tracker.CurrentMode != controller.OnboardMode {
 		return
 	}
+	this.pauseAfterFrame = false
 	run()
 	this.saveAt = time.Now().Add(saveDelay)
 }
@@ -128,8 +135,27 @@ func (this *CubeRunner) placeDisplay() {
 	}
 	println("Total=" + strconv.Itoa(count))
 	println("Run x=" + strconv.Itoa(display.X) + ",y=" + strconv.Itoa(display.Y) + ",z=" + strconv.Itoa(display.Z) +
-		",dir=" + strconv.Itoa(display.Dir))
+		",dir=" + strconv.Itoa(display.Dir) + ",type=" + strconv.Itoa(cubeTypeIndex(this.Board.CubeType())))
 	this.canvas.Displays[0] = render.NewDisplay(display.X, display.Y, display.Z, 8, 8, 8)
+}
+
+// cubeTypeIndex is the original's scan variant for the EEPROM type (compared case-insensitively),
+// only printed: our scanner always drives one 8x8x8 cube.
+func cubeTypeIndex(cubeType string) int {
+	types := [...]string{"8x8x8A", "8x8x8B", "8x16x8A", "161616A", "161616B", "161616C", "8x32x8A", "8x32x8B"}
+	for index, name := range types {
+		if len(name) != len(cubeType) {
+			continue
+		}
+		same := true
+		for i := range len(name) {
+			same = same && name[i]|0x20 == cubeType[i]|0x20
+		}
+		if same {
+			return index
+		}
+	}
+	return -1
 }
 
 // runOnboard plays one step of the original shows and waits for its frame time on the show
@@ -139,6 +165,10 @@ func (this *CubeRunner) runOnboard() {
 	rendered, waitMs := this.Player.Step(uint32(start))
 	if rendered {
 		this.Board.Show(this.canvas.Displays[0].Voxels)
+		if this.pauseAfterFrame {
+			this.pauseAfterFrame = false
+			this.Player.Paused = true
+		}
 	}
 	this.Board.SetBlank(this.Player.DisplayOff)
 
