@@ -9,11 +9,12 @@ You are continuing work on **stm32-led-cube**: TinyGo firmware for an iCubeSmart
 ## Hard rules from the user
 
 - **Never install software.** **Never `git add`/commit/push.** The user reviews and commits.
-- Use `.cmd` scripts in `scripts\`, not make (the `Makefile` is kept for Linux only).
+- Use the Go task runner `go run . <task>` (root `main.go`, Windows only), not make (the `Makefile` is kept for Linux only). The old `scripts\*.cmd` are gone.
+- Tests live in `tests/` at the root (package `tests`, external tests of the `internal/...` packages), never next to the implementation files.
 - **Never write to `%TEMP%`.** One-off scripts and files go in `.agent/external/temp` (gitignored).
 - `.agent/` is the agent's memory and docs folder. `.agent/external` and `.agent/photos` are gitignored.
 - Don't run ILSpy. The C# decompile is already in `.agent/external/decompiled`. Ghidra is allowed.
-- Flashing: STM32CubeProgrammer CLI over **COM4** with the BOOT0 jumper (`scripts\flash.cmd`). ST-Link and the logic analyzer are not used.
+- Flashing: STM32CubeProgrammer CLI over **COM4** with the BOOT0 jumper (`go run . flash`). ST-Link and the logic analyzer are not used.
 - Don't edit files via terminal commands (no `gofmt -w`, `sed`, etc.). Use the edit tools.
 - The user may edit files between sessions. Always re-read a file before editing it.
 
@@ -21,17 +22,15 @@ You are continuing work on **stm32-led-cube**: TinyGo firmware for an iCubeSmart
 
 - In agent terminals, strip TinyGo's goroot from PATH before `go`/`tinygo`, otherwise you get "sync/atomic is not in std":
   `$env:Path = ($env:Path -split ';' | Where-Object { $_ -notmatch 'tinygo\\goroot-' }) -join ';'`
-- Build from the **repo root**: `cmd /c scripts\build.cmd [pkg]`. The default pkg is `./cmd/8x8_rgb_cube` and the output is `bin\main.hex`.
+- Build from the **repo root**: `go run . build [pkg]`. The default pkg is `./cmd/8x8_rgb_cube` and the output is `bin\main.hex`.
   - It uses the custom target `targets/gd32f103re.json` with linker script `targets/gd32f103re.ld`, which gives FLASH 350K.
   - Above that: uploaded show slot at `0x08057800` (158 KB), console registry at `0x0807F000` (+ backup `0x0807F800`).
-- Other scripts:
-  - `scripts\flash.cmd [COMx] [file]`: builds first unless a file is given.
-  - `scripts\monitor.cmd`: COM4, 115200.
-  - `scripts\dump.cmd`
-  - `scripts\test-oracle.cmd`: Windows/386 oracle tests against the vendor `Simulator.dll`.
-  - `scripts\terminal.cmd [COMx] [baud] [command]`: console terminal (wraps lines in `#?…?!`).
-  - `scripts\upload.cmd [COMx]`: starts the vendor Download Software at 115200 for show uploads.
-- Host tests (only `lightshow` builds on the PC): `go test ./internal/lightshow/...`
+- Other tasks (`go run .` lists them; defaults COM4, 115200):
+  - `flash [COMx] [file]`: builds first unless a file is given.
+  - `dump [COMx]`, `monitor [COMx] [baud]`, `upload [COMx]` (vendor Download Software at 115200).
+  - `terminal [-raw] [COMx] [baud] [command]`: console terminal (wraps lines in `#?…?!`); serial port via kernel32 (`GetCommState`/`SetCommState`/`SetCommTimeouts`), no extra modules.
+  - `test` (`go test ./tests/...`), `oracle` (`GOARCH=386`, adds the `Simulator.dll` comparison in `tests/oracle_test.go`).
+- Host tests: `go test ./tests/...` (only `lightshow` builds on the PC).
 - Regenerate the Go shows: `go run ./tools/showgen` (overwrites `internal/lightshow/builtin/{dynamic,audio,test,library}.go`; `show.go` is hand-written).
 - **Known false alarm:** `gofmt -l` flags every file because of CRLF line endings (git autocrlf). To check real formatting, normalize CRLF→LF into `.agent/external/temp/fmt.go` and run `gofmt -d` on that copy.
 - `create_file` cannot overwrite a file. Write `x.go.new`, then `Move-Item -Force`.
@@ -64,7 +63,7 @@ Layers (2026-10-20 restructure, user's design): `runner` → `controller` → {`
 | `internal/lightshow` | Player (package `lightshow`), `Show`/`Cartoon`, `BlobShow`, VM; `SetShow` sets the missing-resource log on any show with `SetMissing` |
 | `internal/lightshow/blob`, `render`, `keyframe` | Show data parser, renderers, Go show model (`keyframe.Show{Cartoons, Keys, Library}`) |
 | `internal/lightshow/builtin` | Generated built-in cartoons (`Dynamic`, `Audio`, `Test`, `New(list)`), `original/` factory data (tests/showgen only) |
-| `internal/lightshow/oracle` | Frame-exact tests against `Simulator.dll` (windows && 386) |
+| `tests/` | Host tests (package `tests`): `blob_test.go`, `builtin_test.go`, `oracle_test.go` (frame-exact against `Simulator.dll`, windows && 386) |
 | `internal/component` | Drivers (table below) |
 | `internal/common` | `EqualFold` (ASCII), `Flag` ("1"/"0") |
 | `tools/fwtool` | Extracts the show data from a vendor hex or flash dump |
@@ -103,13 +102,10 @@ Hardware facts: the base's Type-C is power only (no USB serial); there's no SD s
 
 ### Implemented but NOT yet checked on hardware
 
-The checklist is in `.agent/documentation/what-i-need-from-you.md`:
+The checklist is in `.agent/documentation/what-i-need-from-you.md`. Everything else, including the 2026-10-20 controller restructure, was confirmed on hardware by the user.
 
-- Console leftovers: registry surviving a power cycle (flash write), ReadMem, DelReg, ClrReg. Use `scripts\terminal.cmd` (`tinygo monitor` can't send).
-- Go shows (2026-10-19): Dynamic/Audio/Test now run from Go functions instead of the embedded data; should look identical.
-- Text mode + upload: `scripts\upload.cmd`, download an `Update.hex` from the 3D Software; expect `Show upload started`, `Show upload OK`, then `Uploaded show: N cartoons` in Text mode. About 13000 records, ~2-3 min.
-- Cascade (needs a second cube).
-- Live DIP mode switching (no reset), KEY6 as a plain key, console `Key`/`Action`/`Cartoon`/`Status` (2026-10-19 refactor).
+- Cascade (needs a second cube; the user assumes it works until someone reports an issue).
+- The `go run . terminal` / `monitor` serial code (Win32 API) replacing the PowerShell terminal (2026-10-20): not run against the cube yet.
 
 ### Not ported on purpose
 

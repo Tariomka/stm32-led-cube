@@ -28,7 +28,7 @@ flowchart TD
 | `internal/lightshow/render` | Canvas, graph blit/rotation, ball, title, point, line |
 | `internal/lightshow/keyframe` | Shows written in Go (keyframed props, ASCII-art shapes, palettes) |
 | `internal/lightshow/builtin` | Built-in shows (generated Go cartoons) |
-| `internal/lightshow/oracle` | Frame-by-frame comparison with the vendor 3D Software's preview renderer |
+| `tests` | Host tests: show data parser, built-in shows vs the factory data, frame-by-frame comparison with the vendor 3D Software's preview renderer (32-bit Windows only) |
 | `internal/component` | Drivers of the physical parts: display scanner (with the frame bit layout), buttons, layer decoder, microphone (with the loudness meter), IR receiver, UARTs, EEPROM, flash, watchdog, status LEDs |
 | `internal/common` | Small shared helpers (ASCII compare, `0`/`1` flags) |
 | `tools/showgen` | Generates `internal/lightshow/builtin` from the factory show data |
@@ -50,7 +50,7 @@ Controllers:
 
 `ShowController` uses the Display, Settings, Mode and Cascade controllers; `TerminalController` uses the System, Settings, Show and Key controllers. The others stand alone.
 
-Only `lightshow` and `common` build and test on a PC (`go test ./internal/lightshow/...`); the rest uses the TinyGo `machine` package.
+Only `lightshow` and `common` build on a PC, so the tests in `tests/` cover the show engine; the rest uses the TinyGo `machine` package. `main.go` in the root is the Windows task runner ([below](#task-runner)).
 
 ## Modes
 
@@ -116,8 +116,8 @@ The watchdog uses TinyGo's `machine.Watchdog` with a 4 s timeout. TinyGo compute
 Requirements: Go 1.24+, TinyGo 0.39+ (tested with 0.43), STM32CubeProgrammer for flashing over UART.
 
 ```bat
-scripts\build.cmd                    rem builds ./cmd/8x8_rgb_cube into bin\main.hex
-scripts\build.cmd ./cmd/gpio_diag    rem another program, same output file
+go run . build                     rem builds ./cmd/8x8_rgb_cube into bin\main.hex
+go run . build ./cmd/gpio_diag     rem another program, same output file
 ```
 
 Equivalent command:
@@ -128,10 +128,11 @@ tinygo build -o bin/main.hex -target targets/gd32f103re.json -opt s -panic print
 
 The target `targets/gd32f103re.json` inherits `bluepill-clone` and uses `targets/gd32f103re.ld` (350 KB code, 64 KB RAM, 4 KB stack). Run builds from the repository root (the linker script path is relative).
 
-Host tests:
+Host tests (in `tests/`):
 
 ```sh
-go test ./internal/lightshow/...
+go run . test        # or: go test ./tests/...
+go run . oracle      # 32-bit, adds the comparison with the vendor 3D Software's renderer
 ```
 
 ## Flashing
@@ -140,7 +141,7 @@ The kit has no SWD header, so flashing uses the ROM bootloader on UART1.
 
 1. Connect a 3.3 V USB-UART adapter to the core board header: GND–GND, TXD–TXD, RXD–RXD (swap TX/RX if the bootloader doesn't answer). Disconnect the Pico.
 2. Fit the BOOT0 jumper and press Reset.
-3. `scripts\flash.cmd [COMx] [file]` (default COM4, builds and flashes `bin\main.hex`). It writes, verifies and starts the program (`-g 0x08000000`).
+3. `go run . flash [COMx] [file]` (default COM4, builds and flashes `bin\main.hex`). It writes, verifies and starts the program (`-g 0x08000000`).
 4. Remove BOOT0 so the cube starts normally after the next power cycle.
 
 STM32CubeProgrammer CLI commands (bootloader runs 8E1 at 115200):
@@ -155,24 +156,27 @@ $cp = "C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM
 
 Writing erases only the pages the file covers, so the show slot and registry survive a firmware update.
 
-## Scripts
+## Task runner
 
-| Script | Does |
+`main.go` in the repository root is a small Windows command-line tool for the project's tasks. Run it from the repository root with `go run . <task>`; without a task it prints the list.
+
+| Task | Does |
 |---|---|
-| `scripts\build.cmd [package]` | TinyGo build into `bin\main.hex` |
-| `scripts\flash.cmd [COMx] [file]` | Build (if no file is given) and flash over the ROM bootloader |
-| `scripts\dump.cmd [COMx]` | Read the whole 512 KB flash into `firmware\dump_<timestamp>.bin` |
-| `scripts\monitor.cmd [COMx] [baud]` | `tinygo monitor` on the console port |
-| `scripts\terminal.cmd [COMx] [baud] [command]` | Interactive console: typed lines are sent as `#?line?!`. With a command it sends it once and prints the reply |
-| `scripts\upload.cmd [COMx]` | Starts the vendor "Download Software" at 115200 baud for a show upload |
-| `scripts\test-oracle.cmd` | Compares the engine's frames with the preview renderer of the vendor 3D Software (Windows, 32-bit Go, the vendor software must be present) |
+| `build [package]` | TinyGo build into `bin\main.hex` |
+| `flash [COMx] [file]` | Build (if no file is given) and flash over the ROM bootloader |
+| `dump [COMx]` | Read the whole 512 KB flash into `firmware\dump_<timestamp>.bin` |
+| `terminal [-raw] [COMx] [baud] [command]` | Interactive console: typed lines are sent as `#?line?!` (`-raw`: as typed). With a command it sends it once and prints the reply for 2 s |
+| `monitor [COMx] [baud]` | Prints everything the cube sends |
+| `upload [COMx]` | Starts the vendor "Download Software" at 115200 baud for a show upload |
+| `test [go test flags]` | Host tests in `tests/` |
+| `oracle [go test flags]` | The tests built 32-bit, which adds the frame comparison with the vendor 3D Software's renderer (the vendor software must be present) |
 
-`CUBEPROG` overrides the STM32CubeProgrammer path, `ICUBE_DOWNLOAD` the Download Software path.
+Defaults: COM4, 115200 baud. The serial port is opened 8N1 with DTR and RTS off. `CUBEPROG` overrides the STM32CubeProgrammer path, `ICUBE_DOWNLOAD` the Download Software path.
 
 ## Uploading shows from the vendor software
 
 1. Design a show in the iCubeSmart "3D Software - RGB" and export `Update.hex`.
-2. Run `scripts\upload.cmd COMx` and download `Update.hex` in the tool.
+2. Run `go run . upload COMx` and download `Update.hex` in the tool.
 3. Set SW1 and SW2 to ON (Text mode) to play it.
 
 Protocol details: [serial-protocol.md](serial-protocol.md#show-upload).

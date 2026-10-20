@@ -50,13 +50,13 @@ Here's a basic brakedown of the structure of directories:
 │   │   ├── builtin # Built-in light shows (the original cartoons as Go functions)
 │   │   │   └── original # Original show data, only for tools/showgen and tests
 │   │   ├── keyframe # Light shows written in Go: keyframed graphs/balls, shapes (ASCII art), palettes
-│   │   ├── oracle # Byte-exact comparison against the vendor Simulator.dll (windows/386 only)
 │   │   └── render # Canvas, graphs (rotation), balls, titles
 │   ├── component # Hardware drivers: pins, buttons, layer decoder, display scanner (TIM2), microphone (ADC + TIM3), IR receiver, UARTs, EEPROM, flash, watchdog, LEDs
 │   └── common # Small shared helpers
-├── scripts # Windows build/flash/monitor/dump/terminal/upload scripts
 ├── targets # Custom TinyGo target for the GD32F103RE (512 KB flash, 64 KB RAM)
-└── tools # fwtool (extracts show data from a vendor hex/bin), showgen (show data -> Go shows)
+├── tests # Host tests: show data parser, built-in shows vs the original data, comparison against the vendor Simulator.dll (windows/386 only)
+├── tools # fwtool (extracts show data from a vendor hex/bin), showgen (show data -> Go shows)
+└── main.go # Windows task runner: go run . build/flash/dump/terminal/monitor/upload/test/oracle
 ```
 
 ## Light shows
@@ -72,21 +72,21 @@ DIP SW1/SW2 select the show mode (`controller.Mode`). Changing them switches the
 | 1 | 0 | Test: LED test patterns |
 | 0 | 0 | Text: shows uploaded from the PC (the original scrolling-text cartoon is not included) |
 
-Uploading: make a show in the iCubeSmart "3D Software - RGB" and export `Update.hex`, then run `scripts\upload.cmd [COMx]`, which starts the vendor "Download Software" at 115200 baud, and download `Update.hex`. The cube keeps only the show data (in flash, kept across power cycles) and plays all its cartoons in Text mode.
+Uploading: make a show in the iCubeSmart "3D Software - RGB" and export `Update.hex`, then run `go run . upload [COMx]`, which starts the vendor "Download Software" at 115200 baud, and download `Update.hex`. The cube keeps only the show data (in flash, kept across power cycles) and plays all its cartoons in Text mode.
 
 Other original features:
 - KEY1..KEY7 run the original key functions (prev, next, speed+, speed-, pause, play mode, display off).
 - Audio group cartoons follow the microphone level (PA0).
 - The kit's 21-key IR remote works like the original: CH- display off, CH+ play mode, VOL-/EQ previous/next, VOL+ pause, >>| speed up, 100+ speed down, >|| speed reset, 200+ replay, 0..9 jump to cartoon 0..9.
 - Speed, play mode, pause, display off and the selected cartoon are kept in the 24C02 EEPROM across power cycles.
-- The original UART console works on UART1 (115200 baud): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself; so does `scripts\terminal.cmd`, an interactive terminal for Windows). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
+- The original UART console works on UART1 (115200 baud): send `#?Help?!` (the vendor PC tool adds `#?`/`?!` itself; so does `go run . terminal`, an interactive terminal for Windows). Commands: Help, ReBoot, ReadMem, SetReg, GetReg, RegList, DelReg, ClrReg, SetType, SetSerial, Test. The registry is stored in the last 4 KB of flash.
 - Remote control commands on the same console: `Key 1-7`, `Action 1-19`, `Cartoon <index>`, `Status`. The Raspberry Pi Pico uses this console and the upload frames, like the PC tools; there is no separate Pico protocol.
 - Flash map: firmware up to 350 KB, uploaded show data at `0x08057800` (158 KB), registry at `0x0807F000` (see `targets/gd32f103re.ld`).
 - Cascade: cubes chained over the 3.5 mm jacks (TX to the next cube's RX) find their order at power-up and play in step, following the first cube's keys. It uses the original protocol.
 
 Full reference (hardware, display, protocols, show format, storage, firmware): [docs/documentation](docs/documentation/README.md).
 
-Run the host tests with `go test ./internal/lightshow/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
+Run the host tests with `go run . test` (or `go test ./tests/...`). The oracle tests need Windows and the vendor PC software in `.agent/external` (`go run . oracle`). `go run .` lists all tasks of the Windows task runner.
 
 # Getting started
 
@@ -111,7 +111,7 @@ Unfinished. WORK IN PROGRESS! Do not use this.
 
 1. Build project binary (run from the repository root, the target file uses a relative linker script path):
     ```sh
-    scripts\build.cmd
+    go run . build
     ```
     or with Make / directly:
     ```sh
@@ -120,7 +120,7 @@ Unfinished. WORK IN PROGRESS! Do not use this.
     ```
     > The default `bluepill-clone` target is limited to 64 KB of flash, which is too small for the original shows.
 
-    On Windows `scripts\flash.cmd [COMx]` builds and flashes over UART with the STM32CubeProgrammer CLI (BOOT0 jumper set), skipping step 2.
+    On Windows `go run . flash [COMx]` builds and flashes over UART with the STM32CubeProgrammer CLI (BOOT0 jumper set), skipping step 2.
 2. Flash newly created binary:
     <!-- TODO: Add screenshots -->
     1. Short the `BOOT0` pins on the GD32 yellow board

@@ -1,4 +1,4 @@
-// gpio_diag verifies the KEY5 (PA14) fix on hardware. Watch the output with scripts\monitor.cmd.
+// gpio_diag verifies the KEY5 (PA14) fix on hardware. Watch the output with `go run . monitor`.
 package main
 
 import (

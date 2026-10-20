@@ -1,8 +1,8 @@
 //go:build windows && 386
 
-// Package oracle compares the Go engine with the vendor's Simulator.dll (32-bit, from the
-// iCubeSmart PC software) frame by frame. Run with: scripts\test-oracle.cmd
-package oracle
+// Compares the Go show engine with the vendor's Simulator.dll (32-bit, from the iCubeSmart PC
+// software) frame by frame. Run with: go run . oracle
+package tests
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	dllPath = "../../../.agent/external/3D Software - RGB Cube/Simulator.dll"
+	dllPath = "../.agent/external/3D Software - RGB Cube/Simulator.dll"
 	// RVA of the player's speed factor (float32). Patched to make frame waits zero.
 	speedRVA = 0x1c7b8
 	cubeSize = 8 * 8 * 8

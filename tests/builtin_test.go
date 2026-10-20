@@ -1,4 +1,4 @@
-package builtin
+package tests
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow"
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
+	"github.com/Tariomka/stm32-led-cube/internal/lightshow/builtin"
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/builtin/original"
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe"
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/render"
@@ -21,9 +22,9 @@ func TestMatchesOriginal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for group, cartoons := range [][]func() *keyframe.Cartoon{Dynamic, Audio, Test} {
+	for group, cartoons := range [][]func() *keyframe.Cartoon{builtin.Dynamic, builtin.Audio, builtin.Test} {
 		want := lightshow.NewBlobShow(b, group)
-		got := New(cartoons)
+		got := builtin.New(cartoons)
 		got.SetMissing(func(kind, name string) { t.Errorf("missing %s %q", kind, name) })
 		if got.Count() != want.Count() {
 			t.Fatalf("group %d: %d cartoons, want %d", group, got.Count(), want.Count())

@@ -1,15 +1,16 @@
-package blob
+package tests
 
 import (
 	"bytes"
 	"testing"
 
+	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/builtin/original"
 )
 
-func mustParse(t *testing.T) *Blob {
+func mustParse(t *testing.T) *blob.Blob {
 	t.Helper()
-	b, err := Parse(original.Blob)
+	b, err := blob.Parse(original.Blob)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,18 +28,18 @@ func TestOriginalLayout(t *testing.T) {
 			t.Errorf("key %d = %d, want %d", k+1, got, want)
 		}
 	}
-	if b.DisplayCount() != 1 || b.Display(0) != (Display{CubeType: 1}) {
+	if b.DisplayCount() != 1 || b.Display(0) != (blob.Display{CubeType: 1}) {
 		t.Errorf("displays = %d %+v", b.DisplayCount(), b.Display(0))
 	}
 	if p, ok := b.Palette("red-series"); !ok || p != "\x00\x30\x31\x32\x33\x3B\x3F\x00\x00\x00\x00\x00\x00\x00\x00\x00" {
 		t.Errorf("red-series = %q %v", p, ok)
 	}
 	graphs := 0
-	b.ForEachGraph(func(Graph) { graphs++ })
+	b.ForEachGraph(func(blob.Graph) { graphs++ })
 	if graphs != 79 {
 		t.Errorf("graphs = %d, want 79", graphs)
 	}
-	if idx, ok := b.Index("TwoSide"); !ok || len(idx) != 60 || IndexValue(idx, 0, 1) != 7 {
+	if idx, ok := b.Index("TwoSide"); !ok || len(idx) != 60 || blob.IndexValue(idx, 0, 1) != 7 {
 		t.Errorf("TwoSide index = %d bytes, ok=%v", len(idx), ok)
 	}
 	for g, want := range []int{41, 10, 4, 1} {
@@ -46,7 +47,7 @@ func TestOriginalLayout(t *testing.T) {
 			t.Errorf("group %d has %d cartoons, want %d", g+1, got, want)
 		}
 	}
-	if h := b.Group(3)[0].Header(); h != (FrameHeader{FrameCount: 102, Loop: 1, Delay: 150}) {
+	if h := b.Group(3)[0].Header(); h != (blob.FrameHeader{FrameCount: 102, Loop: 1, Delay: 150}) {
 		t.Errorf("text cartoon header = %+v", h)
 	}
 }
@@ -54,7 +55,7 @@ func TestOriginalLayout(t *testing.T) {
 // Re-encoding the decoded voxels with the PC software's encoder must reproduce the stored bytes.
 func TestDecodeRoundTrip(t *testing.T) {
 	b := mustParse(t)
-	b.ForEachGraph(func(g Graph) {
+	b.ForEachGraph(func(g blob.Graph) {
 		vox := make([]byte, g.Voxels())
 		if err := g.Decode(vox); err != nil {
 			t.Fatalf("%s: %v", g.Name, err)
@@ -84,14 +85,14 @@ func encode(vox []byte) ([]byte, int) {
 	if len(palette) > 16 {
 		out := make([]byte, (len(vox)+3)&^3)
 		copy(out, vox)
-		return out, NoCompress
+		return out, blob.NoCompress
 	}
-	bits, comp := 4, Normal2
+	bits, comp := 4, blob.Normal2
 	switch {
 	case len(palette) <= 2:
-		bits, comp = 1, Normal8
+		bits, comp = 1, blob.Normal8
 	case len(palette) <= 4:
-		bits, comp = 2, Normal4
+		bits, comp = 2, blob.Normal4
 	}
 	index := func(v byte) byte {
 		for i, p := range palette {

@@ -26,7 +26,7 @@ Internal flash: 512 KB at `0x08000000`, 2 KB pages. An erased byte reads `0xFF`;
 | `0x0800B000–0x080320FF` | Show data region (factory show: 32 100 bytes) |
 | `0x08032100–0x08038FC3` | Drivers, startup code, more application code |
 
-Flashing this firmware replaces all of it. Keep a full dump (`scripts\dump.cmd`) to restore the factory firmware ([firmware.md](firmware.md#flashing)).
+Flashing this firmware replaces all of it. Keep a full dump (`go run . dump`) to restore the factory firmware ([firmware.md](firmware.md#flashing)).
 
 ## Registry
 

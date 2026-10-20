@@ -4,7 +4,7 @@
 		{
 			"label": "Tinygo build project",
 			"type": "shell",
-			"command": "${workspaceFolder}\\scripts\\build.cmd",
+			"command": "go run . build",
 			"args": [],
 			"group": {
 				"kind": "build",
@@ -15,7 +15,7 @@
 		{
 			"label": "Flash (UART bootloader, COM4)",
 			"type": "shell",
-			"command": "${workspaceFolder}\\scripts\\flash.cmd",
+			"command": "go run . flash",
 			"args": ["COM4"],
 			"detail": "Fit BOOT0 + press Reset first"
 		}

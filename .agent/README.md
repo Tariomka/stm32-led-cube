@@ -44,4 +44,4 @@ Notes, plans and reference material for:
 - **Photos:** `photos/` (gitignored)
 - **Vendor PC software:** [external/](external/) (3D Software, Simulator.dll, demo `.gc`/`.hex`)
 
-Rules: the agent doesn't install software, stage or commit. Scripts are `.cmd`, not make.
+Rules: the agent doesn't install software, stage or commit. Tasks run through `go run . <task>` (root `main.go`), not make; tests live in `tests/`.
