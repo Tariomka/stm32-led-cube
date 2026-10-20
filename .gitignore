@@ -4,10 +4,12 @@
 # Build folders
 bin/
 build/
-.agents/
 
 # Temorary folders
 tmp/
+
+# Agent folder
+.agent/
 
 # Binaries for programs and plugins
 *.exe
@@ -32,6 +34,4 @@ go.work.sum
 .vscode/settings.json
 
 # Exclude specific files
-.agent/external
-.agent/photos
 !firmware/*
