@@ -4,6 +4,7 @@
 # Build folders
 bin/
 build/
+.agents/
 
 # Temorary folders
 tmp/
