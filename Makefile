@@ -1,6 +1,6 @@
 BIN_DIR = bin
 TINYGO_FLAGS = -opt s -panic print -gc conservative -size full
-TARGET = -target bluepill-clone
+TARGET = -target targets/gd32f103re.json
 ifdef OS
 	VERSION = v$(strip $(shell cmd /C date /t))_$(subst :,-,$(shell cmd /C time /t))
 	RM = del /s /q
@@ -12,13 +12,13 @@ BIN_NAME = main_8x8_rgb_$(VERSION).hex
 
 build_version: create
 	@echo Starting to compile versioned Tinygo binary, please wait...
-	@tinygo build -o ./$(BIN_DIR)/$(BIN_NAME) $(TARGET) $(TINYGO_FLAGS) ./cmd/8x8_rgb_cube/main.go
+	@tinygo build -o ./$(BIN_DIR)/$(BIN_NAME) $(TARGET) $(TINYGO_FLAGS) ./cmd/8x8_rgb_cube
 	@echo Created '$(BIN_NAME)' binary file.
 	@echo Build finished.
 
 build: create
 	@echo Starting to compile Tinygo binary, please wait...
-	@tinygo build -o ./$(BIN_DIR)/main_8x8_rgb.elf $(TARGET) -opt s ./cmd/8x8_rgb_cube/main.go
+	@tinygo build -o ./$(BIN_DIR)/main_8x8_rgb.elf $(TARGET) -opt s ./cmd/8x8_rgb_cube
 	@echo Build finished.
 
 create:

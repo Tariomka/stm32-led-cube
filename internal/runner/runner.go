@@ -1,77 +1,88 @@
+// Package runner starts the cube: it creates the controllers and runs the main loop.
 package runner
 
 import (
 	"time"
 
-	"github.com/Tariomka/led-common-lib/pkg/led"
-	"github.com/Tariomka/stm32-led-cube/internal/common/global"
-	"github.com/Tariomka/stm32-led-cube/internal/component"
 	"github.com/Tariomka/stm32-led-cube/internal/controller"
 )
 
-type Runner interface {
-	Start()
+const tick = 10 * time.Millisecond // input polling period while a frame is shown
+
+type Runner struct {
+	system   *controller.SystemController
+	settings *controller.SettingsController
+	keys     *controller.KeyController
+	remote   *controller.RemoteController
+	mode     *controller.ModeController
+	cascade  *controller.CascadeController
+	show     *controller.ShowController
+	terminal *controller.TerminalController
 }
 
-type CubeRunner struct {
-	Board        controller.Board
-	LayoutWorker led.LayoutWorker
-	Tracker      *controller.StateTracker
-}
-
-func NewRunner(config RunnerConfig) Runner {
-	// TODO: implement other cube sizes/types
-	if config.BaseSize != Size8 || config.Height != Size8 || config.LedType != RGB {
-		return nil
+func New() *Runner {
+	system := controller.NewSystemController() // first: frees the debug port pins, starts the watchdog
+	settings := controller.NewSettingsController()
+	display := controller.NewDisplayController()
+	keys := controller.NewKeyController()
+	mode := controller.NewModeController()
+	cascade := controller.NewCascadeController()
+	show := controller.NewShowController(display, settings, mode, cascade)
+	return &Runner{
+		system:   system,
+		settings: settings,
+		keys:     keys,
+		remote:   controller.NewRemoteController(),
+		mode:     mode,
+		cascade:  cascade,
+		show:     show,
+		terminal: controller.NewTerminalController(system, settings, show, keys),
 	}
-
-	tracker := controller.NewStateTracker(config.LightShows)
-	return &CubeRunner{
-		LayoutWorker: &led.LedLayout{},
-		Board:        controller.NewYellowBoard(tracker),
-		Tracker:      tracker,
-	}
 }
 
-func (this *CubeRunner) Start() {
-	global.HandleStartup()
+func (this *Runner) Start() {
+	this.system.Startup(this.settings.CubeType())
+	println(this.mode.Config())
+	this.cascade.Discover(this.idle)
+	this.show.Place()
 
 	for {
-		switch this.Tracker.CurrentMode {
-		case controller.OnboardMode:
-			this.runOnboardLoop()
-		case controller.DebugMode:
-			this.runDebugLoop()
-		case controller.SerialMode:
-			this.runSerialLoop()
+		this.step()
+	}
+}
+
+// idle keeps the watchdog fed and the terminal served.
+func (this *Runner) idle() {
+	this.system.Feed()
+	this.terminal.Poll()
+}
+
+// step plays one step of the show and handles input until its frame time is over on the show
+// clock (shared by all cascaded cubes) or the show is replaced.
+func (this *Runner) step() {
+	start := this.cascade.Clock()
+	deadline := start + uint64(this.show.Step(uint32(start)))
+	for {
+		this.idle()
+		this.show.Poll()
+		this.show.RunKeys(this.cascade.Keys(this.keys.Take(), this.keys.Held()))
+		if this.cascade.Master() {
+			if action := this.remote.Take(); action != 0 {
+				this.show.Action(action)
+			}
 		}
-	}
-}
+		if this.show.Changed() {
+			return
+		}
 
-func (this *CubeRunner) runOnboardLoop() {
-	for _, frameCallback := range this.Tracker.CurrentLightShow() {
-		this.LayoutWorker.ResetBlock()
-		frameCallback(this.LayoutWorker)
-		this.Tracker.ExecuteFrame(func() {
-			this.Board.LightLeds(this.LayoutWorker)
-			this.Board.DisableLeds()
-		})
+		now := this.cascade.Clock()
+		if now >= deadline {
+			return
+		}
+		wait := tick
+		if this.cascade.Master() {
+			wait = min(time.Duration(deadline-now)*time.Millisecond, tick)
+		}
+		time.Sleep(wait)
 	}
-}
-
-func (this *CubeRunner) runDebugLoop() {
-	// Placeholder
-	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
-	this.Board.EnableLeds()
-}
-
-func (this *CubeRunner) runSerialLoop() {
-	// Placeholder
-	this.Board.DisableLeds()
-	data := this.Board.Receive()
-	if len(data) > 0 {
-		this.Board.Send("Received:" + string(data))
-	}
-	this.Board.GetIndicator().Blink(component.BlinkGreen, 100*time.Millisecond, false)
-	time.Sleep(2 * time.Second)
 }

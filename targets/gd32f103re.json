@@ -1,0 +1,4 @@
+{
+	"inherits": ["bluepill-clone"],
+	"linkerscript": "targets/gd32f103re.ld"
+}

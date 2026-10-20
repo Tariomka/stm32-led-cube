@@ -8,6 +8,9 @@ build/
 # Temorary folders
 tmp/
 
+# Agent folder
+.agent/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -32,3 +35,4 @@ go.work.sum
 
 # Exclude specific files
 !firmware/*
+!tests/*.dll

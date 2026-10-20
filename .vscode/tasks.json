@@ -4,13 +4,20 @@
 		{
 			"label": "Tinygo build project",
 			"type": "shell",
-			"command": "make",
+			"command": "go run . build",
 			"args": [],
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			},
-			"detail": "tinygo build -o ./bin/main.hex -target=bluepill-clone ./cmd/8x8_rgb_cube/main.go"
+			"detail": "tinygo build -o bin/main.hex -target targets/gd32f103re.json ./cmd/8x8_rgb_cube"
+		},
+		{
+			"label": "Flash (UART bootloader, COM4)",
+			"type": "shell",
+			"command": "go run . flash",
+			"args": ["COM4"],
+			"detail": "Fit BOOT0 + press Reset first"
 		}
 	]
 }

@@ -1,10 +1,6 @@
 package component
 
-import (
-	"machine"
-
-	"github.com/Tariomka/stm32-led-cube/internal/common/utils"
-)
+import "machine"
 
 // Line decoder demultiplexer for providing power to each layer of led cube (Anode control).
 type Demultiplexer struct {
@@ -14,38 +10,28 @@ type Demultiplexer struct {
 	MultiEnable OutputPin // Demultiplexer Enable pin, PA8. High turns off, Low turns on
 }
 
-func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
+func NewDemultiplexer() Demultiplexer {
 	demux := Demultiplexer{
-		MultiA0:     NewOutputPin(a0),
-		MultiA1:     NewOutputPin(a1),
-		MultiA2:     NewOutputPin(a2),
-		MultiEnable: NewOutputPin(en1),
+		MultiA0:     NewOutputPin(machine.PB0),
+		MultiA1:     NewOutputPin(machine.PB1),
+		MultiA2:     NewOutputPin(machine.PB10),
+		MultiEnable: NewOutputPin(machine.PA8),
 	}
 
-	NewOutputPin(a3).Low() // For 8x8x8 cube, the fourth address input needs to always be Low
-	NewOutputPin(en2).High()
-
+	NewOutputPin(machine.PB11).Low() // For 8x8x8 cube, the fourth address input needs to always be Low
+	NewOutputPin(machine.PC7).High()
 	demux.MultiEnable.High()
 	return demux
 }
 
-func (demux Demultiplexer) EnableLayer(index uint8) error {
-	if err := utils.ErrIfOutOfBounds(index); err != nil {
-		return err
-	}
-
-	demux.MultiEnable.Low()
-	demux.MultiA0.Set(index&1 == 1)
-	demux.MultiA1.Set(index>>1&1 == 1)
-	demux.MultiA2.Set(index>>2&1 == 1)
-
-	return nil
+// EnableLayer powers layer 0..7.
+func (this Demultiplexer) EnableLayer(index uint8) {
+	this.MultiEnable.Low()
+	this.MultiA0.Set(index&1 == 1)
+	this.MultiA1.Set(index>>1&1 == 1)
+	this.MultiA2.Set(index>>2&1 == 1)
 }
 
-func (demux Demultiplexer) Disable() {
-	demux.MultiEnable.High()
-}
+func (this Demultiplexer) Disable() { this.MultiEnable.High() }
 
-func (demux Demultiplexer) Enable() {
-	demux.MultiEnable.Low()
-}
+func (this Demultiplexer) Enable() { this.MultiEnable.Low() }
