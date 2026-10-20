@@ -13,15 +13,14 @@ type CascadePort struct {
 }
 
 func NewCascadePort() *CascadePort {
-	uart := machine.UART2
-	uart.Configure(machine.UARTConfig{BaudRate: 115200, TX: machine.PA2, RX: machine.PA3})
+	port := &CascadePort{
+		uart: NewUart(machine.UART2, machine.PA2, machine.PA3),
+	}
 	NewInputPin(machine.PA3) // pull-up: an unplugged jack must not produce noise
-	return &CascadePort{uart: uart}
+	return port
 }
 
-func (this *CascadePort) Send(payload []byte) {
-	this.uart.Write(cascade.Encode(payload))
-}
+func (this *CascadePort) Send(payload []byte) { this.uart.Write(cascade.Encode(payload)) }
 
 // Poll passes every complete received payload to handle.
 func (this *CascadePort) Poll(handle func(payload []byte)) {
@@ -30,6 +29,7 @@ func (this *CascadePort) Poll(handle func(payload []byte)) {
 		if err != nil {
 			return
 		}
+
 		if payload, ok := this.parser.Feed(b); ok {
 			handle(payload)
 		}

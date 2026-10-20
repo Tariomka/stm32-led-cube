@@ -1,6 +1,7 @@
 package component
 
 import (
+	"device/arm"
 	"device/stm32"
 	"machine"
 )
@@ -32,11 +33,21 @@ func NewOutputPin(pin machine.Pin) OutputPin {
 	return output
 }
 
-func NewSpiOutput(spi *machine.SPI, sck, sdo machine.Pin) *machine.SPI {
+func NewUart(uart *machine.UART, tx machine.Pin, rx machine.Pin) *machine.UART {
+	uart.Configure(machine.UARTConfig{
+		BaudRate: 115200,
+		TX:       tx,
+		RX:       rx,
+	})
+	return uart
+}
+
+func NewSpiOutput() *machine.SPI {
+	spi := machine.SPI0
 	spi.Configure(machine.SPIConfig{
 		Frequency: 25 * machine.MHz, // Max should be around 32mhz
-		SCK:       sck,
-		SDO:       sdo,
+		SCK:       machine.SPI0_SCK_PIN,
+		SDO:       machine.SPI0_SDO_PIN,
 		LSBFirst:  true,
 		Mode:      1,
 	})
@@ -44,12 +55,25 @@ func NewSpiOutput(spi *machine.SPI, sck, sdo machine.Pin) *machine.SPI {
 	return spi
 }
 
-// func NewOnBoardI2C() *machine.I2C {
-// 	i2c := machine.I2C0
-// 	i2c.Configure(machine.I2CConfig{
-// 		Frequency: 100_000,
-// 		SCL:       machine.I2C0_SCL_PIN,
-// 		SDA:       machine.I2C0_SDA_PIN,
-// 	})
-// 	return i2c
-// }
+func NewOnBoardI2C() *machine.I2C {
+	i2c := machine.I2C0
+	i2c.Configure(machine.I2CConfig{
+		Frequency: 100 * machine.KHz,
+		SCL:       machine.I2C0_SCL_PIN,
+		SDA:       machine.I2C0_SDA_PIN,
+	})
+	return i2c
+}
+
+// lowerPinInterruptPriority lets the runtime tick timer (priority 0xC1) preempt the pin's EXTI handler.
+// EXTI defaults to the highest priority, and time.Now() inside it spins forever when the tick timer overflows meanwhile.
+func lowerPinInterruptPriority(pin machine.Pin) {
+	irq := uint32(stm32.IRQ_EXTI15_10)
+	switch line := uint32(pin % 16); {
+	case line <= 4:
+		irq = stm32.IRQ_EXTI0 + line
+	case line <= 9:
+		irq = stm32.IRQ_EXTI9_5
+	}
+	arm.SetPriority(irq, 0xE0)
+}

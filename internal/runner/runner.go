@@ -164,6 +164,7 @@ func (this *CubeRunner) placeDisplay() {
 	if this.link == nil {
 		return // Start places it after the cascade discovery
 	}
+
 	count, number := 1, this.link.Number
 	var display blob.Display
 	if uploaded := this.Tracker.Uploaded; uploaded != nil {
@@ -192,6 +193,7 @@ func cubeTypeIndex(cubeType string) int {
 		if len(name) != len(cubeType) {
 			continue
 		}
+
 		same := true
 		for i := range len(name) {
 			same = same && name[i]|0x20 == cubeType[i]|0x20
@@ -200,6 +202,7 @@ func cubeTypeIndex(cubeType string) int {
 			return index
 		}
 	}
+
 	return -1
 }
 
@@ -235,20 +238,17 @@ func (this *CubeRunner) runOnboard() {
 }
 
 // Key presses KEY1..KEY7 (key 0..6) for a console command, like the physical key.
-func (this *CubeRunner) Key(key int) {
-	this.pressed |= 1 << key
-}
+func (this *CubeRunner) Key(key int) { this.pressed |= 1 << key }
 
 // Action runs a key function code for a console command, like the IR remote.
-func (this *CubeRunner) Action(action int) {
-	this.action(func() { this.Player.Action(action) })
-}
+func (this *CubeRunner) Action(action int) { this.action(func() { this.Player.Action(action) }) }
 
 // Select restarts the show on a cartoon for a console command.
 func (this *CubeRunner) Select(cartoon int) bool {
 	if cartoon >= this.Player.Count() {
 		return false
 	}
+
 	this.action(func() {
 		println("Change Cartoon " + strconv.Itoa(cartoon))
 		this.Player.Select(cartoon)
@@ -276,5 +276,6 @@ func flag(value bool) string {
 	if value {
 		return "1"
 	}
+
 	return "0"
 }

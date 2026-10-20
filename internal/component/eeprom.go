@@ -1,140 +1,54 @@
 package component
 
 import (
-	"device/arm"
-	"device/stm32"
-	"errors"
+	"machine"
 	"time"
 )
 
-// EEPROM is the 24C02 (256 bytes, 8-byte pages) on a bit-banged I2C bus like the original
-// firmware: SCL = PB6, SDA = PB7, open-drain outputs with external pull-ups.
-type EEPROM struct{}
-
 const (
-	eepromAddress = 0xA0
-	eepromPage    = 8
-	sclBit        = 1 << 6
-	sdaBit        = 1 << 7
+	eepromAddress = 0x50
+	pageSizeB     = 8 // Page size in bytes
 )
 
-var ErrEEPROM = errors.New("eeprom not responding")
+// EEPROM is the 24C02 (256 bytes, 8-byte pages) on I2C1: SCL = PB6, SDA = PB7.
+type EEPROM struct{ bus *machine.I2C }
 
 func NewEEPROM() EEPROM {
-	stm32.RCC.APB2ENR.SetBits(stm32.RCC_APB2ENR_IOPBEN)
-	stm32.GPIOB.BSRR.Set(sclBit | sdaBit)
-	stm32.GPIOB.CRL.ReplaceBits(0x77, 0xff, 24) // PB6, PB7: open-drain output, 50 MHz
-	return EEPROM{}
+	return EEPROM{bus: NewOnBoardI2C()}
 }
 
-func i2cDelay() {
-	for i := 0; i < 60; i++ { // about 5 µs at 72 MHz
-		arm.Asm("nop")
-	}
-}
-
-func setLine(bit uint32, high bool) {
-	if high {
-		stm32.GPIOB.BSRR.Set(bit)
-	} else {
-		stm32.GPIOB.BRR.Set(bit)
-	}
-	i2cDelay()
-}
-
-func sda() bool { return stm32.GPIOB.IDR.HasBits(sdaBit) }
-
-func i2cStart() {
-	setLine(sdaBit, true)
-	setLine(sclBit, true)
-	setLine(sdaBit, false)
-	setLine(sclBit, false)
-}
-
-func i2cStop() {
-	setLine(sdaBit, false)
-	setLine(sclBit, true)
-	setLine(sdaBit, true)
-}
-
-func i2cWrite(b byte) bool {
-	for i := 0; i < 8; i++ {
-		setLine(sdaBit, b&0x80 != 0)
-		setLine(sclBit, true)
-		setLine(sclBit, false)
-		b <<= 1
-	}
-	setLine(sdaBit, true)
-	setLine(sclBit, true)
-	ack := !sda()
-	setLine(sclBit, false)
-	return ack
-}
-
-func i2cRead(ack bool) byte {
-	var b byte
-	setLine(sdaBit, true)
-	for i := 0; i < 8; i++ {
-		setLine(sclBit, true)
-		b <<= 1
-		if sda() {
-			b |= 1
-		}
-		setLine(sclBit, false)
-	}
-	setLine(sdaBit, !ack)
-	setLine(sclBit, true)
-	setLine(sclBit, false)
-	setLine(sdaBit, true)
-	return b
-}
-
-func (EEPROM) Read(address byte, buffer []byte) error {
-	defer i2cStop()
-	i2cStart()
-	if !i2cWrite(eepromAddress) || !i2cWrite(address) {
-		return ErrEEPROM
-	}
-
-	i2cStart()
-	if !i2cWrite(eepromAddress | 1) {
-		return ErrEEPROM
-	}
-
-	for i := range buffer {
-		buffer[i] = i2cRead(i < len(buffer)-1)
-	}
-	return nil
+func (this EEPROM) Read(address byte, buffer []byte) error {
+	return this.bus.ReadRegister(eepromAddress, address, buffer)
 }
 
 // Write stores data page by page and waits for each internal write cycle (max 5 ms).
-func (EEPROM) Write(address byte, data []byte) error {
+func (this EEPROM) Write(address byte, data []byte) error {
+	var page [pageSizeB + 1]byte
 	for len(data) > 0 {
-		n := min(len(data), eepromPage-int(address)%eepromPage)
-		i2cStart()
-		ok := i2cWrite(eepromAddress) && i2cWrite(address)
-		for i := 0; ok && i < n; i++ {
-			ok = i2cWrite(data[i])
+		n := min(len(data), pageSizeB-int(address)%pageSizeB)
+		page[0] = address
+		copy(page[1:], data[:n])
+		if err := this.bus.Tx(eepromAddress, page[:n+1], nil); err != nil {
+			return err
 		}
-		i2cStop()
-		if !ok || !waitWriteCycle() {
-			return ErrEEPROM
+
+		if err := this.waitWriteCycle(); err != nil {
+			return err
 		}
+
 		address += byte(n)
 		data = data[n:]
 	}
 	return nil
 }
 
-func waitWriteCycle() bool {
+// waitWriteCycle polls until the chip acknowledges its address again.
+func (this EEPROM) waitWriteCycle() error {
 	deadline := time.Now().Add(10 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		i2cStart()
-		ack := i2cWrite(eepromAddress)
-		i2cStop()
-		if ack {
-			return true
+	for {
+		err := this.bus.Tx(eepromAddress, nil, nil)
+		if err == nil || time.Now().After(deadline) {
+			return err
 		}
 	}
-	return false
 }

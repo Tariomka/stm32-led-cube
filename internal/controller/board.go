@@ -71,41 +71,27 @@ func NewYellowBoard() Board {
 	component.DisableDebugPort()
 
 	board := YellowBoard{
-		Scanner: component.NewScanner(
-			machine.SPI0,
-			machine.SPI0_SCK_PIN,
-			machine.SPI0_SDO_PIN,
-			machine.PC4,
-			machine.PC5,
-			component.NewDemultiplexer(
-				machine.PB0,
-				machine.PB1,
-				machine.PB10,
-				machine.PB11,
-				machine.PA8,
-				machine.PC7,
-			),
-		),
+		Scanner:     component.NewScanner(),
 		EEPROM:      component.NewEEPROM(),
 		Cascade:     component.NewCascadePort(),
-		LedsOnboard: component.NewOnboardLeds(machine.PB9, machine.PB8),
+		LedsOnboard: component.NewOnboardLeds(),
 		Microphone:  component.NewMicrophone(),
-		Infrared:    component.NewInfraredReceiver(machine.PC6),
+		Infrared:    component.NewInfraredReceiver(),
+		Upload:      &upload.Receiver{Storage: &component.ShowSlotStorage{}},
 	}
 	board.Console = &console.Console{Device: &board, Registry: loadRegistry()}
-	board.Upload = &upload.Receiver{Storage: &component.ShowSlotStorage{}}
-	board.Serial = component.NewSerialPort(machine.UART1, board.Console.Run, board.Upload.Frame)
+	board.Serial = component.NewSerialPort(board.Console.Run, board.Upload.Frame)
 	board.Upload.Reply = func(payload []byte) { board.Serial.Write(upload.Frame(payload)) }
 	board.Console.Write = board.Serial.WriteString
 
 	for index, pin := range [KeyCount]machine.Pin{machine.PC0, machine.PC1, machine.PC2, machine.PB3, machine.PA14, machine.PA13, machine.PA11} {
 		board.Keys[index] = component.NewButton(pin)
 		bit := uint8(1) << index
-		board.Keys[index].OnPress(func() { pendingKeys |= bit })
+		err := board.Keys[index].OnPress(func() { pendingKeys |= bit })
+		if err != nil {
+			println("Button '", index, "' OnPress error:", err)
+		}
 	}
-	board.Scanner.Start()
-	board.Microphone.Start()
-	board.Infrared.Start()
 
 	global.HandleFatal = func() {
 		board.LedsOnboard.LedGreen.High()
@@ -130,9 +116,7 @@ func (this *YellowBoard) Show(voxels []byte) {
 	this.Scanner.Present()
 }
 
-func (this *YellowBoard) SetBlank(blank bool) {
-	this.Scanner.SetBlank(blank)
-}
+func (this *YellowBoard) SetBlank(blank bool) { this.Scanner.SetBlank(blank) }
 
 func (this *YellowBoard) TakeKeys() uint8 {
 	mask := interrupt.Disable()
@@ -146,26 +130,14 @@ func (this *YellowBoard) KeyHeld(key int) bool {
 	return key >= 0 && key < KeyCount && this.Keys[key].Pressed()
 }
 
-func (this *YellowBoard) AudioLevel(mode int) int {
-	return this.Microphone.Level(mode)
-}
+func (this *YellowBoard) AudioLevel(mode int) int { return this.Microphone.Level(mode) }
 
-func (this *YellowBoard) AudioRaw() int {
-	return this.Microphone.Raw()
-}
+func (this *YellowBoard) AudioRaw() int { return this.Microphone.Raw() }
 
-func (this *YellowBoard) TakeRemote() int {
-	return this.Infrared.Take()
-}
+func (this *YellowBoard) TakeRemote() int { return this.Infrared.Take() }
 
-func (this *YellowBoard) CascadeSend(payload []byte) {
-	this.Cascade.Send(payload)
-}
+func (this *YellowBoard) CascadeSend(payload []byte) { this.Cascade.Send(payload) }
 
-func (this *YellowBoard) CascadePoll(handle func([]byte)) {
-	this.Cascade.Poll(handle)
-}
+func (this *YellowBoard) CascadePoll(handle func([]byte)) { this.Cascade.Poll(handle) }
 
-func (this *YellowBoard) SetRemote(remote console.Remote) {
-	this.Console.Remote = remote
-}
+func (this *YellowBoard) SetRemote(remote console.Remote) { this.Console.Remote = remote }

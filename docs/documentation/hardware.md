@@ -34,7 +34,7 @@ Schematic: [Yellow small board schematic](../diagrams/Yellow%20small%20board%20s
 | Serial header | 4-pin right angle: **GND, TXD, RXD, +5V**. USART1: TX = PA9, RX = PA10 |
 | D1 / D2 | Status LEDs, green on **PB9**, red on **PB8**. Wired from 3.3 V through 1 kΩ to the pin, so **active low** |
 | D3 | Power LED |
-| 24C02 EEPROM | 256 bytes, bit-banged I²C: SCL = **PB6**, SDA = **PB7**, 10 kΩ pull-ups, device address `0x50` (`0xA0` write / `0xA1` read) |
+| 24C02 EEPROM | 256 bytes on I²C1: SCL = **PB6**, SDA = **PB7**, 10 kΩ pull-ups, device address `0x50` (`0xA0` write / `0xA1` read) |
 | SD card | Drawn on the schematic (SDIO PC8–PC12, PD2, card detect PB5) but **not fitted** |
 | Debug | No SWD header. SWDIO (PA13) and SWCLK (PA14) only reach the base connector, where they are KEY6 and KEY5 |
 
@@ -159,5 +159,5 @@ The cube runs from 5 V on the base's USB Type-C (up to 3 A for 8×8×8). The ser
 | DIP | PA1, PC3, PA15, PA12 | GPIO (polled) |
 | IR | PC6 | GPIO + EXTI6 |
 | Microphone | PA0 | ADC1 channel 0 |
-| EEPROM | PB6 SCL, PB7 SDA | GPIO open drain (bit-banged) |
+| EEPROM | PB6 SCL, PB7 SDA | I2C1, 100 kHz |
 | Status LEDs | PB9 green, PB8 red (active low) | GPIO |

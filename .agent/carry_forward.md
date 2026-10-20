@@ -81,7 +81,7 @@ TinyGo 0.43.0 (scoop), Go 1.27.2, STM32CubeProgrammer v2.23.0, Ghidra + temurin2
 | `microphone.go` | ADC1 continuous, sampled by a TIM3 1 kHz interrupt |
 | `infrared.go` | PC6 EXTI on both edges, timed with `time.Now` |
 | `serial.go` | UART1: bytes go through the console `Demux` (commands and upload frames) |
-| `eeprom.go` | Bit-banged I2C on PB6/PB7 to the 24C02 |
+| `eeprom.go` | 24C02 through TinyGo's `machine.I2C0` (I2C1, PB6/PB7, 100 kHz, `NewOnBoardI2C` in `pin.go`) |
 | `flash.go` | Page erase/program: registry (`WriteFlashPage`), show slot (`ShowSlotStorage`, `ShowSlotData`) |
 | `cascade.go` | UART2 on PA2/PA3, 115200 |
 

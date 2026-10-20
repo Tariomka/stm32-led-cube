@@ -8,9 +8,6 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/remote"
 )
 
-// Gaps longer than this are not part of a NEC frame (the original uses a 20 ms timer).
-const irTimeout = 20 * time.Millisecond
-
 // InfraredReceiver decodes the IR remote receiver output (active low) on an EXTI pin.
 type InfraredReceiver struct {
 	InputPin
@@ -20,14 +17,17 @@ type InfraredReceiver struct {
 	code     int // last decoded code, 0 = none
 }
 
-func NewInfraredReceiver(pin machine.Pin) *InfraredReceiver {
-	return &InfraredReceiver{InputPin: NewInputPin(pin), decoder: remote.NewDecoder()}
-}
-
-func (this *InfraredReceiver) Start() error {
-	err := this.SetInterrupt(machine.PinToggle, this.edge)
-	lowerPinInterruptPriority(this.Pin)
-	return err
+func NewInfraredReceiver() *InfraredReceiver {
+	ir := &InfraredReceiver{
+		InputPin: NewInputPin(machine.PC6),
+		decoder:  remote.NewDecoder(),
+	}
+	err := ir.SetInterrupt(machine.PinToggle, ir.edge)
+	if err != nil {
+		println("InfraredReceiver: SetInterrupt error:", err)
+	}
+	lowerPinInterruptPriority(ir.Pin)
+	return ir
 }
 
 func (this *InfraredReceiver) edge(machine.Pin) {
@@ -35,7 +35,7 @@ func (this *InfraredReceiver) edge(machine.Pin) {
 	elapsed := now.Sub(this.lastEdge)
 	this.lastEdge = now
 	interval := 0
-	if elapsed < irTimeout {
+	if elapsed < 20*time.Millisecond {
 		interval = int(elapsed.Microseconds())
 	}
 

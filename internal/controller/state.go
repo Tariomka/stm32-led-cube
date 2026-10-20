@@ -29,8 +29,9 @@ func (this Mode) String() string {
 		return "Test"
 	case Text:
 		return "Text"
+	default:
+		return "Unknown"
 	}
-	return "Unknown"
 }
 
 // switchReads is how many equal readings in a row change the mode (debounce).
@@ -67,16 +68,17 @@ func NewStateTracker() *StateTracker {
 }
 
 func (this *StateTracker) read() Mode {
-	sw1, sw2 := this.Switch1.Get(), this.Switch2.Get()
+	switch1, switch2 := this.Switch1.Get(), this.Switch2.Get()
 	switch {
-	case sw1 && sw2:
+	case switch1 && switch2:
 		return Dynamic
-	case !sw1 && sw2:
+	case !switch1 && switch2:
 		return Audio
-	case sw1 && !sw2:
+	case switch1 && !switch2:
 		return Test
+	default:
+		return Text
 	}
-	return Text
 }
 
 // Update reads the switches and reports whether the mode changed.
@@ -86,13 +88,17 @@ func (this *StateTracker) Update() bool {
 		this.reads = 0
 		return false
 	}
+
 	if mode != this.next {
-		this.next, this.reads = mode, 0
+		this.next = mode
+		this.reads = 0
 	}
-	if this.reads++; this.reads < switchReads {
+	if this.reads++; this.reads < 3 {
 		return false
 	}
-	this.Mode, this.reads = mode, 0
+
+	this.Mode = mode
+	this.reads = 0
 	return true
 }
 

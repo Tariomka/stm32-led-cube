@@ -32,15 +32,18 @@ Logs: `.agent/live_testing/` (original at 921600 baud, ours at 115200).
 - [x] Boot log matches the expected lines.
 - [x] EEPROM settings survive a power cycle. Pause and display off are now saved too (they weren't before); a saved pause shows the first frame, then pauses.
 - [x] **Console** (`console.txt` logs, ours vs original): Help (same layout, English texts), ReBoot, Test, RegList, SetReg, GetReg all behave like the original.
-- [ ] Console leftovers: power-cycle after `SetReg name LedCube`, then `GetReg name` (must survive: proves the flash write); `ReadMem 0x08000000 0 32`; `DelReg name`; `ClrReg`. Note: the flash layout changed (registry stays at `0x0807F000`), so the registry should still be there after reflashing.
-- [ ] **Go shows**: Dynamic (11), Audio (01) and Test (10) now run from Go functions instead of the embedded show data. They should look exactly the same.
+- [x] Console leftovers: registry survives power cycles, `DelReg`, `ClrReg` work (`upload.txt`, `before folding start.txt`).
+- [ ] `ReadMem 0x08000000 0 32` printed only the Help line in `upload.txt` (command not recognised?). Retry it with the current firmware.
+- [x] **Go shows**: Dynamic, Audio and Test look the same as before.
 - [ ] **Text mode (00)**: with nothing uploaded the cube stays dark and the log says `No uploaded show`.
-- [ ] **Upload**: in "3D Software - RGB" export `Update.hex` (or use a demo hex from `.agent/external/3D Software - RGB Cube/`), run `scripts\upload.cmd COM4` (close the terminal/monitor first), pick the file and download. Expect `Show upload started` … `Show upload OK` on the console (~2-3 min), then in Text mode `Uploaded show: N cartoons` and the show playing; it must survive a power cycle.
+- [x] **Upload**: `Show upload OK`, `Uploaded show: 18 cartoons`, survives a power cycle (`upload.txt`, `registry after upload.txt`).
+- [ ] **Text mode now shows `Uploaded show: 0 cartoons`, `Total=0`** (`logs after latest version.txt`), after it showed 18 cartoons. The show slot changed in between. What was done to the cube between the two (another upload, flashing a dump, `-e all`)? Send the output of `ReadMem 0x08057800 0 96` and `Status` in Text mode.
 - [x] Original-style log messages and pause/display off restored after a power cycle.
 - [ ] **Cascade**: needs a second cube. Connect cube A's jack TX to cube B's RX, power both together. B must print `DeviceType=0,DeviceNum=1` and play in step with A, following A's keys.
-- [ ] **Live DIP modes**: flip SW1/SW2 while running. The log prints `Mode=<name>` (+ `Total=`/`Run` lines) and the new show starts at once, keeping speed/pause/play model/display off. A paused cube shows the new show's first frame and stays paused.
-- [ ] **KEY6**: now only the play model key (long press does nothing special).
-- [ ] **Control commands** (`scripts\terminal.cmd`): `Status` → `Status:Mode=...,Cartoon=...`; `Key 2` → `DoKey2` + `Next Cartoon`; `Action 8` → `DeviceSuppend:1`; `Cartoon 5` → `Change Cartoon 5`; `Key 9` → `Param Error!`.
+- [x] **Live DIP modes** (`logs after latest version.txt`).
+- [x] **KEY6**: only the play model key.
+- [x] **EEPROM on hardware I2C**: works. Before the user folded the `Start()` calls into the constructors the boot printed `T=''` (`before folding start.txt`), after it `T='8x32x8b'`. Suspected: TinyGo's F1 I2C driver isn't interrupt-safe in its read sequence and the boot timing of the TIM2/TIM3 interrupts decides it. Watch for `T=''` or settings not restored.
+- [x] **Control commands**.
 
 ### 2. Later / optional
 

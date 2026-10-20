@@ -26,10 +26,10 @@ type OnboardLeds struct {
 	LedRed   OutputPin // Onboard Red Led - D2, pin PB8. Cathode control
 }
 
-func NewOnboardLeds(greenPin machine.Pin, redPin machine.Pin) OnboardLeds {
+func NewOnboardLeds() OnboardLeds {
 	return OnboardLeds{
-		LedGreen: NewOutputPin(greenPin),
-		LedRed:   NewOutputPin(redPin),
+		LedGreen: NewOutputPin(machine.PB9),
+		LedRed:   NewOutputPin(machine.PB8),
 	}
 }
 

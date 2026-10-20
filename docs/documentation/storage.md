@@ -47,7 +47,7 @@ If neither page holds a valid image the firmware prints `Regedit format error!` 
 
 ## EEPROM
 
-24C02: 256 bytes, 8-byte write pages, I²C address `0x50` on a bit-banged bus (PB6 SCL, PB7 SDA, about 100 kHz).
+24C02: 256 bytes, 8-byte write pages, I²C address `0x50` on I2C1 (PB6 SCL, PB7 SDA, 100 kHz). A write waits for the chip's internal write cycle (≤ 5 ms) by polling its address.
 
 | Address | Size | Content | Written by |
 |---|---|---|---|

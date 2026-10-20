@@ -34,12 +34,10 @@ func NewMicrophone() *Microphone {
 	}
 	adc.CR2.SetBits(stm32.ADC_CR2_EXTTRIG | stm32.ADC_CR2_SWSTART)
 
-	return &Microphone{meter: audio.NewMeter(), timer: &machine.TIM3}
-}
-
-func (this *Microphone) Start() {
-	this.timer.Configure(machine.PWMConfig{Period: 1_000_000}) // 1 ms
-	this.timer.SetWraparoundInterrupt(this.sample)
+	microphone := &Microphone{meter: audio.NewMeter(), timer: &machine.TIM3}
+	microphone.timer.Configure(machine.PWMConfig{Period: 1_000_000}) // 1 ms
+	microphone.timer.SetWraparoundInterrupt(microphone.sample)
+	return microphone
 }
 
 func (this *Microphone) sample() {

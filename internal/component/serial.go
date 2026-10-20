@@ -14,9 +14,12 @@ type SerialPort struct {
 	start time.Time
 }
 
-func NewSerialPort(uart *machine.UART, command func(line string), frame func(payload []byte)) *SerialPort {
-	uart.Configure(machine.UARTConfig{})
-	return &SerialPort{uart: uart, demux: console.Demux{Command: command, Frame: frame}, start: time.Now()}
+func NewSerialPort(command func(line string), frame func(payload []byte)) *SerialPort {
+	return &SerialPort{
+		uart:  NewUart(machine.UART1, machine.UART_TX_PIN, machine.UART_RX_PIN),
+		demux: console.Demux{Command: command, Frame: frame},
+		start: time.Now(),
+	}
 }
 
 // Poll moves received bytes through the demultiplexer; call it regularly.

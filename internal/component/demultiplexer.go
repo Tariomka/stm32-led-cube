@@ -14,17 +14,16 @@ type Demultiplexer struct {
 	MultiEnable OutputPin // Demultiplexer Enable pin, PA8. High turns off, Low turns on
 }
 
-func NewDemultiplexer(a0, a1, a2, a3, en1, en2 machine.Pin) Demultiplexer {
+func NewDemultiplexer() Demultiplexer {
 	demux := Demultiplexer{
-		MultiA0:     NewOutputPin(a0),
-		MultiA1:     NewOutputPin(a1),
-		MultiA2:     NewOutputPin(a2),
-		MultiEnable: NewOutputPin(en1),
+		MultiA0:     NewOutputPin(machine.PB0),
+		MultiA1:     NewOutputPin(machine.PB1),
+		MultiA2:     NewOutputPin(machine.PB10),
+		MultiEnable: NewOutputPin(machine.PA8),
 	}
 
-	NewOutputPin(a3).Low() // For 8x8x8 cube, the fourth address input needs to always be Low
-	NewOutputPin(en2).High()
-
+	NewOutputPin(machine.PB11).Low() // For 8x8x8 cube, the fourth address input needs to always be Low
+	NewOutputPin(machine.PC7).High()
 	demux.MultiEnable.High()
 	return demux
 }
@@ -42,10 +41,6 @@ func (this Demultiplexer) EnableLayer(index uint8) error {
 	return nil
 }
 
-func (this Demultiplexer) Disable() {
-	this.MultiEnable.High()
-}
+func (this Demultiplexer) Disable() { this.MultiEnable.High() }
 
-func (this Demultiplexer) Enable() {
-	this.MultiEnable.Low()
-}
+func (this Demultiplexer) Enable() { this.MultiEnable.Low() }

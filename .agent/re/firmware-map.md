@@ -93,7 +93,7 @@ Implemented: `internal/console` (commands + `#?…?!` / upload frame splitter, p
 
 Only two records: serial (8 bytes at 0xA0) and type string (8 bytes at 0xA8: `8x8x8A`, `8x8x8B`, `8x16x8A`, `161616A/B/C`, `8x32x8A/B`). At boot (`FUN_08008288`) the type selects the cube geometry and scan variant, and `FUN_08008be0` checks the serial against a digest (`Error1/Error2` on mismatch = vendor copy protection). The firmware stops (`Cartoon End`) if either check fails. Our firmware doesn't need any of it; it prints `T='<type>'` at boot and `SetType`/`SetSerial` write the records like the original.
 
-The bus is bit-banged (`FUN_08032d84` etc.): PB6 = SCL, PB7 = SDA, open-drain outputs. Our driver: `component.EEPROM`. Our player settings live at 0x00..0x07 (`internal/settings`).
+The bus is bit-banged (`FUN_08032d84` etc.): PB6 = SCL, PB7 = SDA, open-drain outputs. Our driver: `component.EEPROM` on the hardware I2C1 peripheral (`machine.I2C0`, 100 kHz) instead of bit-banging. Our player settings live at 0x00..0x07 (`internal/settings`).
 
 ### Cascade (USART2) ✅
 
