@@ -48,6 +48,7 @@ Logs: `.agent/live_testing/` (original at 921600 baud, ours at 115200).
 - [x] **Watchdog**: no `Watchdog reset!` in any scenario.
 - [x] **EEPROM retry**: settings survive a power cycle.
 - [x] **Display dir 1**: with `SetType 8x8x8A` a "top" show plays upside down; with `8x32x8b` right side up.
+- [ ] **Full retest after the 2026-10-20 restructure** (controllers): boot log, keys (incl. KEY5/KEY6), IR, live DIP modes, console (Help, RegList/SetReg, ReadMem, Status/Key/Action/Cartoon, ReBoot), upload in Text mode, settings across a power cycle, no `Watchdog reset!`.
 
 ### 2. Later / optional
 

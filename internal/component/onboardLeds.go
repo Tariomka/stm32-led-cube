@@ -15,12 +15,6 @@ const (
 	BlinkStaggerGreen
 )
 
-type Indicator interface {
-	BlinkStartup() // Startup indicator
-	BlinkError()   // Error indicator
-	Blink(bType BlinkType, duration time.Duration, delay bool)
-}
-
 type OnboardLeds struct {
 	LedGreen OutputPin // Onboard Green Led - D1, pin PB9. Cathode control
 	LedRed   OutputPin // Onboard Red Led - D2, pin PB8. Cathode control

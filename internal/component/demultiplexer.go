@@ -1,10 +1,6 @@
 package component
 
-import (
-	"machine"
-
-	"github.com/Tariomka/stm32-led-cube/internal/common/utils"
-)
+import "machine"
 
 // Line decoder demultiplexer for providing power to each layer of led cube (Anode control).
 type Demultiplexer struct {
@@ -28,17 +24,12 @@ func NewDemultiplexer() Demultiplexer {
 	return demux
 }
 
-func (this Demultiplexer) EnableLayer(index uint8) error {
-	if err := utils.ErrIfOutOfBounds(index); err != nil {
-		return err
-	}
-
+// EnableLayer powers layer 0..7.
+func (this Demultiplexer) EnableLayer(index uint8) {
 	this.MultiEnable.Low()
 	this.MultiA0.Set(index&1 == 1)
 	this.MultiA1.Set(index>>1&1 == 1)
 	this.MultiA2.Set(index>>2&1 == 1)
-
-	return nil
 }
 
 func (this Demultiplexer) Disable() { this.MultiEnable.High() }

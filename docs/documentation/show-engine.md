@@ -168,7 +168,7 @@ System functions (arguments on the stack, first argument at SP − 1 word; resul
 
 ## Built-in shows
 
-The Dynamic, Audio and Test modes play built-in shows: the factory cartoons written as Go code (`internal/show`), so they need no show data.
+The Dynamic, Audio and Test modes play built-in shows: the factory cartoons written as Go code (`internal/lightshow/builtin`), so they need no show data.
 
 - A cartoon is a function returning a keyframe description: frame count, loop count, delay and elements. Each element is a list of **Graph** props (start/end frame, shape, palette, from/to pose x, y, z, angle, axis, mode) and **Ball** props (start/end, centre, radius from/to, hollow, colors).
 - Shapes are ASCII art: one line per layer from the top (y = H−1) down; each line holds W rows (z = 0, 1, …) separated by spaces, each with L voxels (x = 0, 1, …). A voxel is `.` (palette index 0) or a hex digit 1–F.

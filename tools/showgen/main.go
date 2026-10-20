@@ -1,8 +1,8 @@
-// showgen turns the original show data (internal/show/original/original.bin) into the Go light
-// shows of package internal/show: one function per cartoon plus the shapes and palettes they use.
-// The original Text group (one scrolling-text cartoon) is not converted.
+// showgen turns the original show data (internal/lightshow/builtin/original/original.bin) into the
+// Go light shows of package internal/lightshow/builtin: one function per cartoon plus the shapes and
+// palettes they use. The original Text group (one scrolling-text cartoon) is not converted.
 //
-// Usage (from the repo root): go run ./tools/showgen [output dir, default internal/show]
+// Usage (from the repo root): go run ./tools/showgen [output dir, default internal/lightshow/builtin]
 package main
 
 import (
@@ -13,8 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
-	"github.com/Tariomka/stm32-led-cube/internal/show/original"
+	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
+	"github.com/Tariomka/stm32-led-cube/internal/lightshow/builtin/original"
 )
 
 type groupInfo struct {
@@ -29,10 +29,10 @@ var groups = []groupInfo{
 	{2, "test.go", "Test", "Test"},
 }
 
-const header = "// Generated from the original iCubeSmart show data by tools/showgen.\n\npackage show\n\n"
+const header = "// Generated from the original iCubeSmart show data by tools/showgen.\n\npackage builtin\n\n"
 
 func main() {
-	out := "internal/show"
+	out := "internal/lightshow/builtin"
 	if len(os.Args) > 1 {
 		out = os.Args[1]
 	}
@@ -57,17 +57,17 @@ func main() {
 		}
 		body.WriteString("}\n")
 
-		imports := "import \"github.com/Tariomka/stm32-led-cube/internal/engine/keyframe\"\n\n"
+		imports := "import \"github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe\"\n\n"
 		if strings.Contains(body.String(), "render.") {
-			imports = "import (\n\t\"github.com/Tariomka/stm32-led-cube/internal/engine/keyframe\"\n\t\"github.com/Tariomka/stm32-led-cube/internal/engine/render\"\n)\n\n"
+			imports = "import (\n\t\"github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe\"\n\t\"github.com/Tariomka/stm32-led-cube/internal/lightshow/render\"\n)\n\n"
 		}
 		write(filepath.Join(out, g.file), header+imports+body.String())
 	}
 
 	var src strings.Builder
 	src.WriteString(header)
-	src.WriteString("import \"github.com/Tariomka/stm32-led-cube/internal/engine/keyframe\"\n\n")
-	src.WriteString("// Keys are the original key functions of KEY1..KEY7 (player.Action* codes).\n")
+	src.WriteString("import \"github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe\"\n\n")
+	src.WriteString("// Keys are the original key functions of KEY1..KEY7 (lightshow.Action* codes).\n")
 	src.WriteString("var Keys = [7]int{")
 	for key := 0; key < 7; key++ {
 		if key > 0 {

@@ -4,12 +4,10 @@ import (
 	"device/stm32"
 	"machine"
 	"runtime/interrupt"
-
-	"github.com/Tariomka/stm32-led-cube/internal/engine/frame"
 )
 
 // Plane times in microseconds: 8 layers x (120+360+720) us = 9.6 ms per frame (~104 Hz)
-var planeMicros = [frame.Planes]uint32{120, 360, 720}
+var planeMicros = [framePlanes]uint32{120, 360, 720}
 
 // Scanner refreshes the cube from a timer interrupt: one layer at a time, each layer shown
 // once per plane, the planes weighted 1:3:6 (color levels 1, 2, 3 = 10%, 40%, 100%).
@@ -20,7 +18,7 @@ type Scanner struct {
 	demux Demultiplexer
 	timer *machine.TIM
 
-	buffers [2]frame.Bits
+	buffers [2]frameBits
 	front   int
 	pending bool
 
@@ -36,8 +34,8 @@ func NewScanner() *Scanner {
 		demux: NewDemultiplexer(),
 		timer: &machine.TIM2,
 		// The first interrupt advances to plane 0 of layer 0
-		layer: frame.Layers - 1,
-		plane: frame.Planes - 1,
+		layer: frameLayers - 1,
+		plane: framePlanes - 1,
 	}
 	scanner.blank.High()
 	scanner.latch.Low()
@@ -52,11 +50,10 @@ func NewScanner() *Scanner {
 	return scanner
 }
 
-// Back returns the buffer to draw the next frame into. It must not be used again until Present.
-func (this *Scanner) Back() *frame.Bits { return &this.buffers[1-this.front] }
-
-// Present shows the back buffer from the next full refresh cycle on.
-func (this *Scanner) Present() {
+// Show encodes an 8x8x8 voxel buffer (index x + y*8 + z*64, 0bRRGGBB) into the back buffer and
+// waits until the refresh switches to it, so a frame is never shown half drawn.
+func (this *Scanner) Show(voxels []byte, mapping Mapping) {
+	encodeFrame(voxels, mapping, &this.buffers[1-this.front])
 	mask := interrupt.Disable()
 	this.pending = true
 	interrupt.Restore(mask)
@@ -82,10 +79,10 @@ func (this *Scanner) refresh() {
 	this.blank.High()
 
 	this.plane++
-	if this.plane == frame.Planes {
+	if this.plane == framePlanes {
 		this.plane = 0
 		this.layer++
-		if this.layer == frame.Layers {
+		if this.layer == frameLayers {
 			this.layer = 0
 			if this.pending {
 				this.front = 1 - this.front
@@ -94,7 +91,7 @@ func (this *Scanner) refresh() {
 		}
 	}
 	next := this.plane + 1
-	if next == frame.Planes {
+	if next == framePlanes {
 		next = 0
 	}
 	// ARR is preloaded: this value applies to the period after the one that starts now

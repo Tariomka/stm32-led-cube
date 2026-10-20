@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Tariomka/stm32-led-cube/internal/engine/blob"
+	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
 )
 
 const (

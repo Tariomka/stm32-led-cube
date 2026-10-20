@@ -3,4 +3,4 @@ rem Compares the Go show engine with the vendor Simulator.dll (needs the 32-bit 
 setlocal
 cd /d "%~dp0.."
 set GOARCH=386
-go test -count=1 %* ./internal/engine/oracle/
+go test -count=1 %* ./internal/lightshow/oracle/

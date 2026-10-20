@@ -4,45 +4,53 @@ Written in Go, compiled with TinyGo for the GD32F103RET6 (STM32F103 target with 
 
 ## Structure
 
+The firmware has four layers. Each layer only uses the ones below it:
+
 ```mermaid
 flowchart TD
     main[cmd/8x8_rgb_cube] --> runner
-    runner[runner: main loop, input, cascade, settings] --> controller
-    runner --> player[engine/player]
-    controller[controller: board wiring, DIP mode tracker, console device] --> component
-    controller --> console
-    controller --> upload
-    component[component: scanner, keys, mic, IR, UARTs, EEPROM, flash]
-    player --> render[engine/render]
-    player --> blob[engine/blob]
-    show[show: built-in cartoons] --> keyframe[engine/keyframe]
-    controller --> show
+    runner[runner: creates the controllers, main loop] --> controller
+    controller[controller: one controller per concern] --> lightshow
+    controller --> component
+    lightshow[lightshow: show engine + built-in shows] --> common
+    component[component: hardware drivers] --> common
+    controller --> common
 ```
 
 | Package | Role |
 |---|---|
 | `cmd/8x8_rgb_cube` | Entry point |
 | `cmd/gpio_diag` | GPIO register dump and key test program |
-| `internal/runner` | Main loop: player steps, frame timing, input, cascade, settings, console control |
-| `internal/controller` | `YellowBoard` (hardware wiring), `StateTracker` (DIP mode → show), console device functions |
-| `internal/component` | Drivers: display scanner, buttons, demultiplexer, microphone, IR receiver, UART1 port, cascade port, EEPROM, flash |
-| `internal/console` | Console commands and the UART1 stream splitter (commands / upload frames) |
-| `internal/upload` | Show upload protocol |
-| `internal/cascade` | Cascade frames, discovery, sync, key mask |
-| `internal/remote` | NEC decoder, IR button → key function |
-| `internal/registry` | Registry image format |
-| `internal/settings` | EEPROM settings record |
-| `internal/engine/blob` | Show data parser, graph decompression, name expressions |
-| `internal/engine/render` | Canvas, graph blit/rotation, ball, title, point, line |
-| `internal/engine/player` | Player, key functions, script VM |
-| `internal/engine/keyframe` | Shows written in Go (keyframed props, ASCII-art shapes, palettes) |
-| `internal/engine/frame` | Voxel buffer → MBI5024 bit planes |
-| `internal/engine/audio` | Microphone samples → level 0–63 |
-| `internal/show` | Built-in shows (generated Go cartoons) |
-| `tools/showgen` | Generates `internal/show` from the factory show data |
+| `internal/runner` | Creates the controllers and runs the main loop |
+| `internal/controller` | The controllers (below); each owns its components |
+| `internal/lightshow` | Show engine: player, key functions, script VM. Knows nothing about the hardware |
+| `internal/lightshow/blob` | Show data parser, graph decompression, name expressions |
+| `internal/lightshow/render` | Canvas, graph blit/rotation, ball, title, point, line |
+| `internal/lightshow/keyframe` | Shows written in Go (keyframed props, ASCII-art shapes, palettes) |
+| `internal/lightshow/builtin` | Built-in shows (generated Go cartoons) |
+| `internal/lightshow/oracle` | Frame-by-frame comparison with the vendor 3D Software's preview renderer |
+| `internal/component` | Drivers of the physical parts: display scanner (with the frame bit layout), buttons, layer decoder, microphone (with the loudness meter), IR receiver, UARTs, EEPROM, flash, watchdog, status LEDs |
+| `internal/common` | Small shared helpers (ASCII compare, `0`/`1` flags) |
+| `tools/showgen` | Generates `internal/lightshow/builtin` from the factory show data |
 | `tools/fwtool` | Extracts the show data from a vendor `.hex` or a flash dump |
 
-Everything except `component`, `controller` and `runner` builds and tests on a PC (`go test`).
+Controllers:
+
+| Controller | Owns | Does |
+|---|---|---|
+| `SystemController` | Debug port pins, watchdog, status LEDs | Startup banner, watchdog feeding, resets, memory reads |
+| `SettingsController` | 24C02 EEPROM | Player settings record, factory cube type and serial number |
+| `DisplayController` | MBI5024 chain + layer decoder (TIM2) | Shows frames, upside-down mounting, blanking |
+| `KeyController` | KEY1–KEY7 | Key presses (from interrupts) and held keys |
+| `RemoteController` | IR receiver | NEC decoding, remote button → key function |
+| `ModeController` | DIP switches | Mode, the show of the mode (built-in or uploaded), upload slot state |
+| `CascadeController` | UART2 (3.5 mm jacks) | Chain discovery, show clock, key Sync between cubes |
+| `ShowController` | Player, microphone | Plays the mode's show on the display, key functions, cube placement, settings persistence |
+| `TerminalController` | UART1 | Console commands, show uploads, registry |
+
+`ShowController` uses the Display, Settings, Mode and Cascade controllers; `TerminalController` uses the System, Settings, Show and Key controllers. The others stand alone.
+
+Only `lightshow` and `common` build and test on a PC (`go test ./internal/lightshow/...`); the rest uses the TinyGo `machine` package.
 
 ## Modes
 
@@ -59,32 +67,31 @@ The switches are polled about every 10 ms; a new position must read the same 3 t
 
 ## Startup
 
-1. Disable the JTAG/SWD port (frees PA13, PA14, PA15, PB3, PB4).
-2. Set up the display scanner (TIM2), EEPROM, cascade UART, status LEDs, microphone (ADC1 + TIM3), IR receiver (EXTI6), UART1, keys (EXTI, falling edge, 30 ms debounce).
-3. Load the registry (`Regedit format error!` if empty).
-4. Start the watchdog.
-5. Read the DIP switches and build the mode's show; restore the saved settings.
-6. Print `Led Cube is starting up` (and `Watchdog reset!` if the watchdog caused the reset), `T='<type>'`, blink the green LED 3 times, print `Config1=…,Config2=…`.
-7. Cascade discovery (~1.1 s) while still serving UART1.
-8. Place the display (`Total=`, `Run x=…`) and start the main loop.
+The runner creates the controllers in this order:
+
+1. System: disables the JTAG/SWD port (frees PA13, PA14, PA15, PB3, PB4), status LEDs, starts the watchdog.
+2. Settings (EEPROM), Display (scanner on TIM2), Keys (EXTI, falling edge, 30 ms debounce), Mode (reads the DIP switches), Cascade (UART2).
+3. Show: microphone (ADC1 + TIM3), builds the mode's show, restores the saved settings.
+4. Remote (IR receiver on EXTI6), Terminal (UART1, loads the registry: `Regedit format error!` if empty).
+
+Then it starts:
+
+1. Print `Led Cube is starting up` (and `Watchdog reset!` if the watchdog caused the reset), `T='<type>'`, blink the green LED 3 times, print `Config1=…,Config2=…`.
+2. Cascade discovery (~1.1 s) while still serving UART1.
+3. Place the display (`Total=`, `Run x=…`) and start the main loop.
 
 ## Main loop
 
 ```text
 forever:
-  step the player (renders the next frame if due)
-  show the frame (encode into the back buffer, wait for the swap)
-  apply display off
+  show.Step: step the player, show a new frame, apply display off
   until the frame's time is over (show clock), every 10 ms:
-    feed the watchdog
-    poll UART1: console commands, upload frames, a pending reboot
-    save settings if due
-    poll the DIP switches; on change switch the show
-    poll the cascade link
-    collect key presses and IR codes
-    master: every 8 ms send Sync and run the key functions on rising key bits
-    slave: on Sync run the key functions on rising key bits
-    master: run the IR function
+    system.Feed: feed the watchdog
+    terminal.Poll: console commands, upload frames, a pending reboot
+    show.Poll: DIP switch change (switch the show), save settings if due
+    cascade.Keys(keys.Take, keys.Held): master sends Sync every 8 ms, slave reads Syncs;
+        show.RunKeys runs the key functions of the rising key bits
+    master: show.Action(remote.Take) for an IR button
     if the show was replaced (mode change, upload) stop waiting
 ```
 
@@ -124,7 +131,7 @@ The target `targets/gd32f103re.json` inherits `bluepill-clone` and uses `targets
 Host tests:
 
 ```sh
-go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/... ./internal/show/... ./internal/upload/...
+go test ./internal/lightshow/...
 ```
 
 ## Flashing

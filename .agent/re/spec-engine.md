@@ -51,7 +51,7 @@ Audio cartoon header: the `FrameCount` field is the duration in seconds (0 = for
 - The frame rendered is `level` (0..63). All 10 audio cartoons in our blob use mode 0, 10 s, delay 10.
 - No original show calls `GetAdc`/`GetRealAdc` (checked by running all groups); their firmware mapping is not traced.
 
-Implemented: `internal/engine/audio` (host tests), `component.Microphone` (TIM3 1 kHz ISR).
+Implemented: `component.Microphone` (TIM3 1 kHz ISR and the level meter).
 
 ## Key functions (`FUN_10004f20`) ✅
 

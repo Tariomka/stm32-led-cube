@@ -41,25 +41,19 @@ Here's a basic brakedown of the structure of directories:
 │   └── manuals # Data sheets, user manuals and similar docs
 ├── firmware # External binaries, for example dumped bootloader, etc.
 ├── internal # Core project functionality, considered as private library code
-│   ├── cascade # Original cube-chaining protocol (host testable)
-│   ├── component # Pins, buttons, demultiplexer, BAM display scanner (TIM2), microphone (ADC + TIM3), IR receiver, UARTs, EEPROM, flash
-│   ├── console # Original UART console commands + show control commands + console/upload byte stream splitter (host testable)
-│   ├── controller # Board wiring (keys, UART, display, microphone, IR) and the DIP switch mode tracker
-│   ├── engine # Re-implementation of the original iCubeSmart show engine (host testable)
-│   │   ├── audio # Microphone samples -> 0..63 level for the Audio group
-│   │   ├── blob # Show data blob parser + graph decompression
-│   │   ├── frame # Engine voxels -> MBI5024 bit planes
+│   ├── runner # Entry point: creates the controllers and runs the main loop
+│   ├── controller # One controller per concern, each owning its components:
+│   │          # System (watchdog, LEDs, resets), Settings (EEPROM), Display, Keys, Remote (IR),
+│   │          # Mode (DIP switches), Cascade (chained cubes), Show (player), Terminal (UART1 console + uploads)
+│   ├── lightshow # Re-implementation of the original iCubeSmart show engine (player, key functions, script VM; host testable)
+│   │   ├── blob # Show data parser + graph decompression
+│   │   ├── builtin # Built-in light shows (the original cartoons as Go functions)
+│   │   │   └── original # Original show data, only for tools/showgen and tests
 │   │   ├── keyframe # Light shows written in Go: keyframed graphs/balls, shapes (ASCII art), palettes
 │   │   ├── oracle # Byte-exact comparison against the vendor Simulator.dll (windows/386 only)
-│   │   ├── player # Cartoon player (Go shows or uploaded show data), key functions, script VM
 │   │   └── render # Canvas, graphs (rotation), balls, titles
-│   ├── registry # Console key/value registry in the original flash format (host testable)
-│   ├── remote # NEC IR remote decoder + button map (host testable)
-│   ├── runner # Main loop and modes
-│   ├── settings # Player settings record in the EEPROM (host testable)
-│   ├── show # Built-in light shows (the original cartoons as Go functions) and the show modes
-│   │   └── original # Original show data, only for tools/showgen and tests
-│   └── upload # Receives shows from the vendor PC tool (host testable)
+│   ├── component # Hardware drivers: pins, buttons, layer decoder, display scanner (TIM2), microphone (ADC + TIM3), IR receiver, UARTs, EEPROM, flash, watchdog, LEDs
+│   └── common # Small shared helpers
 ├── scripts # Windows build/flash/monitor/dump/terminal/upload scripts
 ├── targets # Custom TinyGo target for the GD32F103RE (512 KB flash, 64 KB RAM)
 └── tools # fwtool (extracts show data from a vendor hex/bin), showgen (show data -> Go shows)
@@ -67,7 +61,7 @@ Here's a basic brakedown of the structure of directories:
 
 ## Light shows
 
-The premade shows of the original firmware are Go functions in `internal/show` (one per cartoon, generated once from the original show data by `go run ./tools/showgen`; a test checks every frame matches the original). They run on a Go port of the original show engine.
+The premade shows of the original firmware are Go functions in `internal/lightshow/builtin` (one per cartoon, generated once from the original show data by `go run ./tools/showgen`; a test checks every frame matches the original). They run on a Go port of the original show engine.
 
 DIP SW1/SW2 select the show mode (`controller.Mode`). Changing them switches the show right away, without a reset:
 
@@ -92,7 +86,7 @@ Other original features:
 
 Full reference (hardware, display, protocols, show format, storage, firmware): [docs/documentation](docs/documentation/README.md).
 
-Run the host tests with `go test ./internal/engine/... ./internal/remote/... ./internal/console/... ./internal/registry/... ./internal/settings/... ./internal/cascade/... ./internal/show/... ./internal/upload/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
+Run the host tests with `go test ./internal/lightshow/...`. The oracle tests need Windows and the vendor PC software in `.agent/external` (`scripts\test-oracle.cmd`).
 
 # Getting started
 

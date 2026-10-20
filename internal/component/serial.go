@@ -1,43 +1,35 @@
 package component
 
-import (
-	"machine"
-	"time"
+import "machine"
 
-	"github.com/Tariomka/stm32-led-cube/internal/console"
-)
-
-// SerialPort runs UART1: console commands and upload frames are handled as they arrive.
+// SerialPort is a UART at 115200 8N1.
 type SerialPort struct {
-	uart  *machine.UART
-	demux console.Demux
-	start time.Time
+	uart *machine.UART
 }
 
-func NewSerialPort(command func(line string), frame func(payload []byte)) *SerialPort {
-	return &SerialPort{
-		uart:  NewUart(machine.UART1, machine.UART_TX_PIN, machine.UART_RX_PIN),
-		demux: console.Demux{Command: command, Frame: frame},
-		start: time.Now(),
+// NewConsolePort is UART1 on the core board header (TX - PA9, RX - PA10): console, uploads and log
+// output (println writes here too).
+func NewConsolePort() *SerialPort {
+	return &SerialPort{uart: NewUart(machine.UART1, machine.UART_TX_PIN, machine.UART_RX_PIN)}
+}
+
+// NewCascadePort is UART2 on the 3.5 mm jacks (TX - PA2, RX - PA3) to the neighboring cubes.
+func NewCascadePort() *SerialPort {
+	port := &SerialPort{uart: NewUart(machine.UART2, machine.PA2, machine.PA3)}
+	NewInputPin(machine.PA3) // pull-up: an unplugged jack must not produce noise
+	return port
+}
+
+// Read returns the next received byte, ok = false when none is waiting.
+func (this *SerialPort) Read() (b byte, ok bool) {
+	if this.uart.Buffered() == 0 {
+		return 0, false
 	}
+
+	b, err := this.uart.ReadByte()
+	return b, err == nil
 }
 
-// Poll moves received bytes through the demultiplexer; call it regularly.
-func (this *SerialPort) Poll() {
-	now := uint32(time.Since(this.start).Milliseconds())
-	for this.uart.Buffered() > 0 {
-		b, err := this.uart.ReadByte()
-		if err != nil {
-			return
-		}
-		this.demux.Feed(b, now)
-	}
-}
+func (this *SerialPort) Write(data []byte) { this.uart.Write(data) }
 
-func (this *SerialPort) Write(p []byte) (int, error) {
-	return this.uart.Write(p)
-}
-
-func (this *SerialPort) WriteString(s string) {
-	this.uart.Write([]byte(s))
-}
+func (this *SerialPort) WriteString(s string) { this.uart.Write([]byte(s)) }

@@ -4,16 +4,27 @@ import (
 	"device/stm32"
 	"machine"
 	"runtime/interrupt"
-
-	"github.com/Tariomka/stm32-led-cube/internal/engine/audio"
 )
 
-// Microphone samples the sound sensor on PA0 (ADC1 channel 0) every millisecond, like the
-// original firmware: ADC in continuous mode, TIM3 interrupt reads the latest conversion.
+const (
+	micWindow = 20   // samples, taken every millisecond
+	micIdle   = 1050 // 12-bit ADC value of a silent microphone
+
+	MaxAudioLevel = 63
+	// AudioModeDecay lets the level fall by one step per read instead of dropping at once.
+	AudioModeDecay = 2
+)
+
+// Microphone samples the sound sensor on PA0 (ADC1 channel 0) every millisecond and turns the
+// samples into the 0..63 loudness of Audio cartoons, like the factory firmware: ADC in continuous
+// mode, a TIM3 interrupt keeps the latest 20 samples and their peaks.
 type Microphone struct {
-	meter *audio.Meter
-	timer *machine.TIM
-	last  int
+	timer    *machine.TIM
+	samples  [micWindow]int32
+	pos      int
+	max, min int32
+	held     int
+	last     int
 }
 
 func NewMicrophone() *Microphone {
@@ -34,7 +45,10 @@ func NewMicrophone() *Microphone {
 	}
 	adc.CR2.SetBits(stm32.ADC_CR2_EXTTRIG | stm32.ADC_CR2_SWSTART)
 
-	microphone := &Microphone{meter: audio.NewMeter(), timer: &machine.TIM3}
+	microphone := &Microphone{timer: &machine.TIM3, max: micIdle, min: micIdle}
+	for index := range microphone.samples {
+		microphone.samples[index] = micIdle
+	}
 	microphone.timer.Configure(machine.PWMConfig{Period: 1_000_000}) // 1 ms
 	microphone.timer.SetWraparoundInterrupt(microphone.sample)
 	return microphone
@@ -42,14 +56,45 @@ func NewMicrophone() *Microphone {
 
 func (this *Microphone) sample() {
 	this.last = int(stm32.ADC1.DR.Get() & 0xfff)
-	this.meter.Add(this.last)
+	this.samples[this.pos] = int32(this.last)
+	this.pos = (this.pos + 1) % micWindow
+	this.max, this.min = 0, 99999
+	for _, s := range this.samples {
+		this.max = max(this.max, s)
+		this.min = min(this.min, s)
+	}
 }
 
-// Level returns the loudness 0..63 for an audio cartoon's level mode.
+// Level returns the loudness 0..63 (how far the signal swings above or below idle) for an audio
+// cartoon's level mode.
 func (this *Microphone) Level(mode int) int {
 	mask := interrupt.Disable()
-	level := this.meter.Level(mode)
+	high, low := this.max, this.min
 	interrupt.Restore(mask)
+
+	up := 0
+	switch {
+	case high >= 2300:
+		up = MaxAudioLevel
+	case high > 1250:
+		up = int((high-1250)*62/1050) + 1
+	}
+	down := 0
+	switch {
+	case low < -199:
+		down = MaxAudioLevel
+	case low < 850:
+		down = int((850-low)*62/1050) + 1
+	}
+	level := max(up, down)
+
+	if mode == AudioModeDecay {
+		if level < this.held {
+			this.held--
+			return this.held
+		}
+		this.held = level
+	}
 	return level
 }
 
