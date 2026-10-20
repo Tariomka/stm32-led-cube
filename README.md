@@ -86,7 +86,7 @@ Other original features:
 
 Full reference (hardware, display, protocols, show format, storage, firmware): [docs/documentation](docs/documentation/README.md).
 
-Run the host tests with `go run . test` (or `go test ./tests/...`). The oracle tests need Windows and the vendor PC software in `.agent/external` (`go run . oracle`). `go run .` lists all tasks of the Windows task runner.
+Run the host tests with `go run . test` (or `go test ./tests/...`). The oracle tests need Windows (32-bit Go) and the vendor `Simulator.dll` in `tests/` (`go run . oracle`). `go run .` lists all tasks of the Windows task runner.
 
 # Getting started
 

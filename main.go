@@ -5,8 +5,8 @@
 //
 //	go run . <task> [arguments]
 //
-// CUBEPROG overrides the STM32CubeProgrammer CLI path, ICUBE_DOWNLOAD the vendor Download Software
-// path.
+// CUBEPROG overrides the STM32CubeProgrammer CLI path; ICUBE_DOWNLOAD is the path of the vendor
+// "Download Software.exe" for the upload task.
 package main
 
 import (
@@ -32,7 +32,7 @@ const (
 
 var (
 	cubeProgrammer   = env("CUBEPROG", `C:\Program Files\STMicroelectronics\STM32Cube\STM32CubeProgrammer\bin\STM32_Programmer_CLI.exe`)
-	downloadSoftware = env("ICUBE_DOWNLOAD", `.agent\external\3D Software - RGB Cube\Download Software.exe`)
+	downloadSoftware = os.Getenv("ICUBE_DOWNLOAD")
 )
 
 type task struct {
@@ -131,8 +131,11 @@ func dump(args []string) error {
 }
 
 func upload(args []string) error {
+	if downloadSoftware == "" {
+		return errors.New(`set ICUBE_DOWNLOAD to the vendor "Download Software.exe" (in the iCubeSmart 3D Software folder)`)
+	}
 	if _, err := os.Stat(downloadSoftware); err != nil {
-		return fmt.Errorf("vendor Download Software not found (set ICUBE_DOWNLOAD): %w", err)
+		return fmt.Errorf("vendor Download Software not found (ICUBE_DOWNLOAD): %w", err)
 	}
 	// Started detached: in the tool, pick the Update.hex made by "3D Software - RGB" and download.
 	return exec.Command(downloadSoftware, arg(args, 0, defaultPort), "115200").Start()

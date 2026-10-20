@@ -1,6 +1,6 @@
 // Package lightshow runs the original iCubeSmart show engine: it walks the cartoons of a show,
 // renders their frames and executes key functions. It is a non-blocking port of the vendor
-// player loop (Simulator.dll FUN_10004ca0); see .agent/re/spec-engine.md. It knows nothing
+// player loop (Simulator.dll FUN_10004ca0); see docs/documentation/show-engine.md. It knows nothing
 // about the hardware: frames are drawn into a render.Canvas.
 //
 // Player is not safe for concurrent use: call Key/Action from the same loop that calls Step

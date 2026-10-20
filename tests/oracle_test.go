@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	dllPath = "../.agent/external/3D Software - RGB Cube/Simulator.dll"
+	dllPath = "Simulator.dll"
 	// RVA of the player's speed factor (float32). Patched to make frame waits zero.
 	speedRVA = 0x1c7b8
 	cubeSize = 8 * 8 * 8

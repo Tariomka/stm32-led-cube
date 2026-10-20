@@ -20,7 +20,6 @@ flowchart TD
 | Package | Role |
 |---|---|
 | `cmd/8x8_rgb_cube` | Entry point |
-| `cmd/gpio_diag` | GPIO register dump and key test program |
 | `internal/runner` | Creates the controllers and runs the main loop |
 | `internal/controller` | The controllers (below); each owns its components |
 | `internal/lightshow` | Show engine: player, key functions, script VM. Knows nothing about the hardware |
@@ -117,7 +116,6 @@ Requirements: Go 1.24+, TinyGo 0.39+ (tested with 0.43), STM32CubeProgrammer for
 
 ```bat
 go run . build                     rem builds ./cmd/8x8_rgb_cube into bin\main.hex
-go run . build ./cmd/gpio_diag     rem another program, same output file
 ```
 
 Equivalent command:
@@ -169,9 +167,9 @@ Writing erases only the pages the file covers, so the show slot and registry sur
 | `monitor [COMx] [baud]` | Prints everything the cube sends |
 | `upload [COMx]` | Starts the vendor "Download Software" at 115200 baud for a show upload |
 | `test [go test flags]` | Host tests in `tests/` |
-| `oracle [go test flags]` | The tests built 32-bit, which adds the frame comparison with the vendor 3D Software's renderer (the vendor software must be present) |
+| `oracle [go test flags]` | The tests built 32-bit, which adds the frame comparison with the vendor 3D Software's renderer (needs the vendor `Simulator.dll` in `tests/`) |
 
-Defaults: COM4, 115200 baud. The serial port is opened 8N1 with DTR and RTS off. `CUBEPROG` overrides the STM32CubeProgrammer path, `ICUBE_DOWNLOAD` the Download Software path.
+Defaults: COM4, 115200 baud. The serial port is opened 8N1 with DTR and RTS off. `CUBEPROG` overrides the STM32CubeProgrammer path, `ICUBE_DOWNLOAD` must hold the path of the vendor `Download Software.exe` for `upload`.
 
 ## Uploading shows from the vendor software
 

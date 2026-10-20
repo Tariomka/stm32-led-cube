@@ -6,7 +6,7 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
 )
 
-// Script VM opcodes (op << 16 | int16 argument), see .agent/re/spec-engine.md.
+// Script VM opcodes (op << 16 | int16 argument), see docs/documentation/show-engine.md.
 const (
 	opLdrSystemA     = 0
 	opLdrLocalA      = 2
