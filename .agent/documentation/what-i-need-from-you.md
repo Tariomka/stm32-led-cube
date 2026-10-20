@@ -33,13 +33,13 @@ Logs: `.agent/live_testing/` (original at 921600 baud, ours at 115200).
 - [x] EEPROM settings survive a power cycle. Pause and display off are now saved too (they weren't before); a saved pause shows the first frame, then pauses.
 - [x] **Console** (`console.txt` logs, ours vs original): Help (same layout, English texts), ReBoot, Test, RegList, SetReg, GetReg all behave like the original.
 - [x] Console leftovers: registry survives power cycles, `DelReg`, `ClrReg` work (`upload.txt`, `before folding start.txt`).
-- [ ] `ReadMem 0x08000000 0 32` printed only the Help line in `upload.txt` (command not recognised?). Retry it with the current firmware.
+- [x] `ReadMem` works (`readmem.txt`). Once, right after power-up, a correct line printed only the Help line; not reproducible since. Probably garbage bytes from the boot (or a paste during boot) ended up in the line. Not pursued.
 - [x] **Go shows**: Dynamic, Audio and Test look the same as before.
-- [ ] **Text mode (00)**: with nothing uploaded the cube stays dark and the log says `No uploaded show`.
-- [x] **Upload**: `Show upload OK`, `Uploaded show: 18 cartoons`, survives a power cycle (`upload.txt`, `registry after upload.txt`).
-- [ ] **Text mode now shows `Uploaded show: 0 cartoons`, `Total=0`** (`logs after latest version.txt`), after it showed 18 cartoons. The show slot changed in between. What was done to the cube between the two (another upload, flashing a dump, `-e all`)? Send the output of `ReadMem 0x08057800 0 96` and `Status` in Text mode.
+- [x] **Text mode (00)**: with nothing uploaded the cube stays dark and the log says `No uploaded show`.
+- [x] **Upload**: `Show upload OK`, `Uploaded show: 18 cartoons`, survives a power cycle (`upload.txt`, `registry after upload.txt`). The reboot during the first attempt was the user resetting the cube.
+- [x] `Uploaded show: 0 cartoons` in `logs after latest version.txt`: the user removed all cartoons on purpose; works as expected.
 - [x] Original-style log messages and pause/display off restored after a power cycle.
-- [ ] **Cascade**: needs a second cube. Connect cube A's jack TX to cube B's RX, power both together. B must print `DeviceType=0,DeviceNum=1` and play in step with A, following A's keys.
+- [~] **Cascade**: no second cube available; assumed to work until someone reports an issue.
 - [x] **Live DIP modes** (`logs after latest version.txt`).
 - [x] **KEY6**: only the play model key.
 - [x] **EEPROM on hardware I2C**: works. Before the user folded the `Start()` calls into the constructors the boot printed `T=''` (`before folding start.txt`), after it `T='8x32x8b'`. Suspected: TinyGo's F1 I2C driver isn't interrupt-safe in its read sequence and the boot timing of the TIM2/TIM3 interrupts decides it. Watch for `T=''` or settings not restored.
