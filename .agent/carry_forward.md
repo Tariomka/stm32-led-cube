@@ -77,7 +77,7 @@ TinyGo 0.43.0 (scoop), Go 1.27.2, STM32CubeProgrammer v2.23.0, Ghidra + temurin2
 | File / type | Hardware |
 |---|---|
 | `pin.go` | `NewInputPin` (pull-down config + `High()`: the KEY5 workaround); `Button` (EXTI falling edge, 30 ms debounce, priority lowered to 0xE0); `DisableDebugPort` |
-| `scanner.go` | TIM2 display refresh: 2 brightness planes, about 104 Hz |
+| `scanner.go` | TIM2 display refresh: 3 thermometer-coded planes weighted 1:3:6 (120/360/720 µs), about 104 Hz |
 | `microphone.go` | ADC1 continuous, sampled by a TIM3 1 kHz interrupt |
 | `infrared.go` | PC6 EXTI on both edges, timed with `time.Now` |
 | `serial.go` | UART1: bytes go through the console `Demux` (commands and upload frames) |
@@ -128,8 +128,8 @@ The checklist is in `.agent/documentation/what-i-need-from-you.md`:
 
 - The vendor IAP bootloader (uploads go straight to the show slot instead; firmware updates use CubeProgrammer).
 - The serial-number copy protection.
-- The IWDG watchdog (about 4 s in the original).
-- Display `dir = 1`.
+- The IWDG watchdog is now ported (`component/watchdog.go`, 4 s requested ≈ 3.2 s real, fed by `Board.KeepAlive` in `handleInput` and the discovery loop; boot prints `Watchdog reset!` after a watchdog reset).
+- Display `dir = 1` is ported: upside down (x and layers mirrored) except for the types whose factory dir-1 conversion is a branch to dir 0 (161616B, 161616C, 8x32x8B = this kit). Decoded from the type tables at `0x080380D8–0x08038148` (entry +8 = dir 0, +0xC = dir 1).
 - Vendor GBK help texts (ours are English).
 - The original console runs at 921600 baud; ours stays at 115200 (the Pico and the PC tools use 115200).
 
@@ -137,10 +137,7 @@ The checklist is in `.agent/documentation/what-i-need-from-you.md`:
 
 1. **Act on the user's next hardware report** (Go shows, Text mode upload, console leftovers). If uploads stall: the 10 ms input tick limits the ack rate; the PC tool waits up to 200 ms per record.
 2. **Sibling projects** (in `..\`). The user decided: no Pico-specific protocol; the Pico uses the console (`#?cmd?!`, `Key`/`Action`/`Cartoon`/`Status`) and the upload frames like the PC tools. `led-common-lib`'s `pkg/led` and `pkg/network` are obsolete; the engine (`internal/engine/*` except `oracle`) is to move into the library, plus a show data writer, a cube protocol client and a desktop ↔ Pico link protocol. Detailed instructions: `..\led-common-lib\.agent\stm32-alignment.md`, `..\rpi-led-communication\.agent\stm32-alignment.md` (touchscreen control + log view), `..\desktop-led-controller\.agent\stm32-alignment.md` (iCubeSmart app features, upload via Pico). Once the library has the engine, delete `internal/engine/{blob,render,player,keyframe,frame,audio}` here and import them (update `tools/showgen`).
-3. **Optional extras:**
-   - IWDG watchdog (feed it in every loop; keep the handshake time in mind)
-   - display `dir = 1`
-   - tuning the brightness planes (the original uses 3 planes weighted 1:3:6 out of 10)
+3. **Optional extras:** done (watchdog, display `dir = 1`, 3-plane 1:3:6 brightness like the factory thermometer coding, EEPROM retry after an I2C reset). Await the user's hardware report.
 4. **Upstream TinyGo issue.** The user has an open issue about `Pin.Configure`'s bit-4 leak. The fix is `uint32(config.Mode)&0xf` in `machine_stm32f103.go`. A PR or issue update can be drafted on request.
 5. **Housekeeping.** `tmp/cmd/test` and `tmp/cmd/deez_nuts` (gitignored) import the deleted `internal/component/registers` package and no longer build.
 

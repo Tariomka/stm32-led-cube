@@ -101,7 +101,7 @@ USART2 115200 8N1 (`FUN_0800ae14`), TX PA2 → next cube's RX PA3. State at `0x2
 
 - **Frame** (`FUN_08034ed0` send, `FUN_080091a0` receive): `A5 55 len payload xor`, `len` 1..15 (receiver accepts 1..16), `xor = len ^ payload bytes`.
 - **Discovery** (`FUN_08036558`, at boot): wait 100 ms, send `[01]` 5× every 100 ms. A cube that receives `[01]` while discovering becomes a slave. Slave: wait 500 ms for `[02 n]` → DeviceNum = n, forward `[02 n+1]`. Master: send `[02 01]` 5× every 100 ms. Prints `DeviceType=%d,DeviceNum=%d`.
-- **Display**: DeviceNum indexes the blob's display table (x, y, z, dir); `DeviceNum >= count` prints `Warn: Pos > Cubes, %d,%d` and uses 0,0,0, so with the original blob every cube shows the same thing. `dir` (0/1) selects one of two frame conversion functions (`FUN_0800a618`); not reproduced.
+- **Display**: DeviceNum indexes the blob's display table (x, y, z, dir); `DeviceNum >= count` prints `Warn: Pos > Cubes, %d,%d` and uses 0,0,0, so with the original blob every cube shows the same thing. `dir` (0/1) selects one of two frame conversion functions (`FUN_0800a618` stores type and dir at `0x20000000`, the type table pointer at `0x20000004`; table entries: +0 scan ISR, +4 layer select, +8 dir 0 conversion, +0xC dir 1 conversion). For 8x8x8A the dir 1 conversion (`FUN_08035770`) reverses the 64 columns of each 64-voxel block (index x + 8y within a z slab), i.e. x and y mirrored = upside down. For 161616B, 161616C and 8x32x8B (this kit) the dir 1 entries (`0x08035C78`, `0x08035C7C`, `0x08035C74`) are `B.W` to their dir 0 functions. Ported as `Board.SetUpsideDown`.
 - **Sync** (master only, 8 ms OS timer `FUN_08036abc`, registered in `FUN_080070d8` when DeviceType = 1): unless paused, clock += 8. Keys are polled; a key counts as held after 15 consecutive polls. Sends `[20, clock u64 LE, key mask]`, then runs the key functions for rising mask bits (`FUN_0803292c`). IR codes are handled on the master only and are **not** forwarded.
 - **Slave** (`FUN_08032be4`): on `[20 …]` forward it, take the clock, run key functions for rising mask bits. Slaves don't poll their own keys or IR.
 - Frame waits (`FUN_08037090`) compare against the shared clock, so every cube advances frames on the master's clock.
@@ -110,6 +110,6 @@ Implemented: `internal/cascade` (frames, discovery, Sync, key mask), `component.
 
 ## Next RE steps
 
-1. Display `dir` = 1 frame conversion (`FUN_0800af94` → table at `0x20000004`), only for multi-cube blobs that use it.
-2. Display scan details (`FUN_0800a68c…`), only if brightness or ghosting needs tuning: the frame buffer at `0x200005CC` has 3 planes (0x600 apart) shown 1, 3 and 6 of 10 refresh slots.
-3. IWDG: the original runs a ~4 s watchdog (`FUN_08038038`). Not ported.
+1. Done: display `dir` = 1 (see Cascade above).
+2. Done: the 3 planes (0x600 apart) are thermometer coded (`FUN_080353f4`: level ≥ 1 → plane A, ≥ 2 → B, 3 → C) and shown in 1, 3 and 6 of 10 whole refresh sweeps (`FUN_0803460c`: slot 0 → A, 1–3 → B, 4–9 → C). Ported as 3 planes per layer weighted 1:3:6.
+3. Done: IWDG watchdog (`FUN_08038038`), ported with TinyGo's `machine.Watchdog`.

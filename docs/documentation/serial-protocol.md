@@ -79,6 +79,7 @@ At power-up:
 Regedit format error!                (only when the registry flash pages are empty or invalid)
 No uploaded show                     (Text mode only; or "Uploaded show: <n> cartoons")
 Led Cube is starting up
+Watchdog reset!                      (only when the watchdog caused the reset)
 T='8x32x8b'                          (cube type from the EEPROM)
 Config1=0,Config2=0                  (mode number, SW3/SW4 bits: bit 0 = SW3 ON, bit 1 = SW4 ON)
 DeviceType=1,DeviceNum=0             (1 = cascade master)
@@ -103,7 +104,7 @@ While running:
 | `Show upload OK` / `Show upload failed` | Upload end frame received |
 | `Not found <kind>:'<name>'` | A cartoon refers to a missing graph, palette or index |
 | `Warn: Pos > Cubes, <num>,<count>` | Cascade position beyond the show's display table |
-| `Warn: display dir <d> is not supported` | Show display entry with dir ≠ 0 |
+| `Warn: display dir <d> is not supported` | Show display entry with dir > 1 (drawn like dir 0) |
 | `Save settings error!` | EEPROM write failed |
 
 Scripts in uploaded shows can print their own lines (`TraceN`).

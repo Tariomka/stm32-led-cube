@@ -49,6 +49,7 @@ func (this *CubeRunner) discoverCascade() {
 	this.link.Discover(func(ms int) {
 		until := time.Now().Add(time.Duration(ms) * time.Millisecond)
 		for time.Now().Before(until) {
+			this.Board.KeepAlive()
 			this.pollCascade()
 			this.Board.PollSerial()
 			time.Sleep(time.Millisecond)
@@ -86,6 +87,7 @@ func (this *CubeRunner) runKeys(edges uint8) {
 // handleInput processes the console, DIP switches, cascade, keys and IR; it returns true when
 // the show was replaced.
 func (this *CubeRunner) handleInput() bool {
+	this.Board.KeepAlive()
 	this.Board.PollSerial()
 	if !this.saveAt.IsZero() && time.Now().After(this.saveAt) {
 		this.saveSettings()

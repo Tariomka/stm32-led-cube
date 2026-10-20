@@ -29,7 +29,7 @@ Offsets are from the start of the block. Sections follow in this order: config, 
 | 8 + 8·i | i16 x, i16 y, i16 z, u8 dir, u8 cubeType | Display *i* |
 
 - x, y, z: position of the cube in the show's coordinate space.
-- `dir`: 0 = bottom, 1 = top (mounting direction; this firmware supports 0 only).
+- `dir`: 0 = bottom, 1 = top (the cube is mounted upside down; see [display.md](display.md#voxel-coordinates)).
 - `cubeType`: 0 none, 1 = 8×8×8, 2 = 8×16×8, 3 = 16×16×16, 4 = 8×32×8 (Long × Height × Width).
 
 The factory show uses keys `[2, 3, 4, 6, 8, 7, 9]` and one display at (0, 0, 0), dir 0, type 1.

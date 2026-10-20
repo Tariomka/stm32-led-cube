@@ -17,7 +17,9 @@ const KeyCount = 7
 
 type Board interface {
 	Show(voxels []byte)              // Presents an 8x8x8 engine frame (index x + y*8 + z*64, 0bRRGGBB)
+	SetUpsideDown(upsideDown bool)   // Rotates the frames 180° about the z axis (show display dir 1)
 	SetBlank(blank bool)             // Turns all LEDs off / back on
+	KeepAlive()                      // Feeds the watchdog; call at least every second
 	TakeKeys() uint8                 // Keys pressed since the last call, bit n = KEY(n+1)
 	KeyHeld(key int) bool            // Whether KEY(key+1) is currently held down
 	AudioLevel(mode int) int         // Microphone loudness 0..63 (audio cartoon level mode)
@@ -60,7 +62,9 @@ type YellowBoard struct {
 	Microphone *component.Microphone       // PA0
 	Infrared   *component.InfraredReceiver // PC6
 
-	rebootAt time.Time // pending console ReBoot, zero if none
+	rebootAt      time.Time // pending console ReBoot, zero if none
+	upsideDown    bool
+	watchdogReset bool // the watchdog caused the last reset
 }
 
 // Keys pressed in interrupt context, consumed by TakeKeys
@@ -104,17 +108,29 @@ func NewYellowBoard() Board {
 	global.HandleError = board.LedsOnboard.BlinkError
 	global.HandleStartup = func() {
 		println("Led Cube is starting up")
+		if board.watchdogReset {
+			println("Watchdog reset!")
+		}
 		println("T='" + board.CubeType() + "'")
 		board.LedsOnboard.BlinkStartup()
 	}
 
+	board.watchdogReset = component.StartWatchdog()
 	return &board
 }
 
 func (this *YellowBoard) Show(voxels []byte) {
-	frame.Encode(voxels, this.Mapping, this.Scanner.Back())
+	mapping := this.Mapping
+	if this.upsideDown {
+		mapping.FlipX, mapping.FlipLayer = !mapping.FlipX, !mapping.FlipLayer
+	}
+	frame.Encode(voxels, mapping, this.Scanner.Back())
 	this.Scanner.Present()
 }
+
+func (this *YellowBoard) SetUpsideDown(upsideDown bool) { this.upsideDown = upsideDown }
+
+func (this *YellowBoard) KeepAlive() { component.FeedWatchdog() }
 
 func (this *YellowBoard) SetBlank(blank bool) { this.Scanner.SetBlank(blank) }
 

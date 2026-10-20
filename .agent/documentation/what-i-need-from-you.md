@@ -44,6 +44,10 @@ Logs: `.agent/live_testing/` (original at 921600 baud, ours at 115200).
 - [x] **KEY6**: only the play model key.
 - [x] **EEPROM on hardware I2C**: works. Before the user folded the `Start()` calls into the constructors the boot printed `T=''` (`before folding start.txt`), after it `T='8x32x8b'`. Suspected: TinyGo's F1 I2C driver isn't interrupt-safe in its read sequence and the boot timing of the TIM2/TIM3 interrupts decides it. Watch for `T=''` or settings not restored.
 - [x] **Control commands**.
+- [ ] **Brightness**: colors now use 3 planes (levels 10 % / 40 % / 100 % instead of 33 % / 67 % / 100 %). Dim colors look darker, like the factory firmware. Check for flicker or ghosting, especially on the Test shows.
+- [ ] **Watchdog**: normal use must never reset the cube (watch for `Watchdog reset!` in the boot log, e.g. during uploads, registry writes, mode changes). A real test: none possible from the console; trust it unless resets show up.
+- [ ] **EEPROM retry**: boot still prints `T='8x32x8b'`, settings still saved.
+- [ ] **Display dir 1** (optional): `SetType 8x8x8A`, upload a show whose display is set to "top" in the 3D Software, Text mode: it must appear upside down. Then `SetType 8x32x8b` to restore.
 
 ### 2. Later / optional
 

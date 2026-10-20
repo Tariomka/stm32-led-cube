@@ -6,14 +6,14 @@ package frame
 const (
 	Layers        = 8
 	BytesPerLayer = 24
-	Planes        = 2 // 2-bit color depth per channel, shown with binary code modulation
+	Planes        = 3 // channel level n (0..3) lights planes 0..n-1, shown 1:3:6 of the time like the factory firmware
 
 	greenOffset = 0
 	blueOffset  = 8
 	redOffset   = 16
 )
 
-// Bits holds plane 0 (weight 1) and plane 1 (weight 2) for every layer.
+// Bits holds the planes of every layer.
 type Bits [Planes][Layers][BytesPerLayer]byte
 
 // Mapping orients the engine's 8x8x8 coordinate space (x, y = up, z) on the physical cube.
@@ -49,15 +49,16 @@ func Encode(voxels []byte, mapping Mapping, out *Bits) {
 					layer = 7 - layer
 				}
 				bit := byte(1) << column
-				for depth := range Planes {
-					if c>>(4+depth)&1 != 0 {
-						out[depth][layer][redOffset+row] |= bit
+				red, green, blue := int(c>>4&3), int(c>>2&3), int(c&3)
+				for plane := range Planes {
+					if red > plane {
+						out[plane][layer][redOffset+row] |= bit
 					}
-					if c>>(2+depth)&1 != 0 {
-						out[depth][layer][greenOffset+row] |= bit
+					if green > plane {
+						out[plane][layer][greenOffset+row] |= bit
 					}
-					if c>>depth&1 != 0 {
-						out[depth][layer][blueOffset+row] |= bit
+					if blue > plane {
+						out[plane][layer][blueOffset+row] |= bit
 					}
 				}
 			}

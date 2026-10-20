@@ -42,16 +42,17 @@ Within a color, byte *n* is row *n* (z = n) and bit *m* is column *m* (x = m). A
 
 ## Color depth
 
-A voxel is 6 bits, `0bRRGGBB`: 2 bits (4 levels: off, 1/3, 2/3, full) per channel. The firmware shows each layer twice per refresh, once per bit plane, with binary weighted durations (binary code modulation):
+A voxel is 6 bits, `0bRRGGBB`: 2 bits (levels 0–3) per channel. Like the factory firmware, each layer is shown three times per refresh, once per plane, and a channel at level *n* is lit in planes 0 to *n*−1 (thermometer coding). The planes have weights 1 : 3 : 6:
 
-| Plane | Voxel bit per channel | On time per layer |
+| Plane | Lit for channel levels | On time per layer |
 |---|---|---|
-| 0 | low bit (R bit 4, G bit 2, B bit 0) | 400 µs |
-| 1 | high bit (R bit 5, G bit 3, B bit 1) | 800 µs |
+| 0 | 1, 2, 3 | 120 µs |
+| 1 | 2, 3 | 360 µs |
+| 2 | 3 | 720 µs |
 
-A full refresh is 8 layers × 1.2 ms = **9.6 ms (≈104 Hz)**.
+So the levels give 0 %, 10 %, 40 % and 100 % brightness, closer to how the eye perceives steps than an even split. A full refresh is 8 layers × 1.2 ms = **9.6 ms (≈104 Hz)**.
 
-The factory firmware uses 3 planes shown 1, 3 and 6 of 10 time slots, with a 180/90/45 µs base period depending on the cube type.
+The factory firmware spreads the same 1 : 3 : 6 weighting over 10 whole refresh cycles instead of within each layer, with a 180/90/45 µs layer period depending on the cube type.
 
 ## Refresh sequence
 
@@ -79,3 +80,5 @@ The show engine uses an 8×8×8 buffer, one byte per voxel, index `x + y·8 + z�
 | y | layer, 0 = bottom |
 
 The firmware has a mapping option to mirror x, mirror z, flip the layers or swap x and z, for cubes built in another orientation. The kit needs none of them.
+
+A show's display entry with **dir 1** ("top": the cube hangs upside down) rotates the picture 180° about the z axis (x and the layers mirrored), as the factory firmware does for the 8x8x8A, 8x8x8B, 8x16x8A, 161616A and 8x32x8A cube types. For the types 161616B, 161616C and 8x32x8B the factory firmware draws dir 1 like dir 0, and so does this firmware. This kit's EEPROM type is `8x32x8b`, so dir 1 has no visible effect unless the type is changed with `SetType`.

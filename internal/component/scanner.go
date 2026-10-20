@@ -8,10 +8,11 @@ import (
 	"github.com/Tariomka/stm32-led-cube/internal/engine/frame"
 )
 
-const basePlaneMicros = 400 // Shortest plane time in microseconds: 8 layers x (1+2) x 400 us = 9.6 ms per frame (~104 Hz)
+// Plane times in microseconds: 8 layers x (120+360+720) us = 9.6 ms per frame (~104 Hz)
+var planeMicros = [frame.Planes]uint32{120, 360, 720}
 
 // Scanner refreshes the cube from a timer interrupt: one layer at a time, each layer shown
-// once per bit plane with binary weighted durations (2-bit color depth per channel).
+// once per plane, the planes weighted 1:3:6 (color levels 1, 2, 3 = 10%, 40%, 100%).
 type Scanner struct {
 	spi   *machine.SPI
 	latch OutputPin // LE, PC4 (MBI5024 latches on the high pulse)
@@ -25,7 +26,6 @@ type Scanner struct {
 
 	layer, plane int
 	blanked      bool
-	planeTicks   [frame.Planes]uint32
 }
 
 func NewScanner() *Scanner {
@@ -41,14 +41,11 @@ func NewScanner() *Scanner {
 	}
 	scanner.blank.High()
 	scanner.latch.Low()
-	for p := range scanner.planeTicks {
-		scanner.planeTicks[p] = basePlaneMicros << p
-	}
 
 	// A 65 ms period makes TinyGo choose prescaler 72 -> 1 MHz timer clock
 	// Configure the timer for 1 us ticks and set up the wraparound interrupt for refreshing the scanner
 	scanner.timer.Configure(machine.PWMConfig{Period: 65_000_000})
-	scanner.timer.Device.ARR.Set(scanner.planeTicks[0] - 1)
+	scanner.timer.Device.ARR.Set(planeMicros[0] - 1)
 	scanner.timer.Device.EGR.SetBits(stm32.TIM_EGR_UG)
 	scanner.timer.SetWraparoundInterrupt(scanner.refresh)
 
@@ -101,7 +98,7 @@ func (this *Scanner) refresh() {
 		next = 0
 	}
 	// ARR is preloaded: this value applies to the period after the one that starts now
-	this.timer.Device.ARR.Set(this.planeTicks[next] - 1)
+	this.timer.Device.ARR.Set(planeMicros[next] - 1)
 
 	if this.blanked {
 		return

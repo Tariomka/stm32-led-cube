@@ -47,7 +47,7 @@ If neither page holds a valid image the firmware prints `Regedit format error!` 
 
 ## EEPROM
 
-24C02: 256 bytes, 8-byte write pages, I²C address `0x50` on I2C1 (PB6 SCL, PB7 SDA, 100 kHz). A write waits for the chip's internal write cycle (≤ 5 ms) by polling its address.
+24C02: 256 bytes, 8-byte write pages, I²C address `0x50` on I2C1 (PB6 SCL, PB7 SDA, 100 kHz). A write waits for the chip's internal write cycle (≤ 5 ms) by polling its address. A failed transfer is repeated once after resetting the I2C peripheral (the STM32F1 I2C peripheral can get stuck busy, and TinyGo's driver doesn't guard its read sequence against interrupts).
 
 | Address | Size | Content | Written by |
 |---|---|---|---|

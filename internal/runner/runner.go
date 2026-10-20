@@ -176,17 +176,25 @@ func (this *CubeRunner) placeDisplay() {
 	if number >= count {
 		println("Warn: Pos > Cubes, " + strconv.Itoa(number) + "," + strconv.Itoa(count))
 	}
-	if display.Dir != 0 {
+	if display.Dir > 1 {
 		println("Warn: display dir " + strconv.Itoa(display.Dir) + " is not supported")
 	}
+	cubeType := cubeTypeIndex(this.Board.CubeType())
+	this.Board.SetUpsideDown(display.Dir == 1 && !ignoresDir(cubeType))
 	println("Total=" + strconv.Itoa(count))
 	println("Run x=" + strconv.Itoa(display.X) + ",y=" + strconv.Itoa(display.Y) + ",z=" + strconv.Itoa(display.Z) +
-		",dir=" + strconv.Itoa(display.Dir) + ",type=" + strconv.Itoa(cubeTypeIndex(this.Board.CubeType())))
+		",dir=" + strconv.Itoa(display.Dir) + ",type=" + strconv.Itoa(cubeType))
 	this.canvas.Displays[0] = render.NewDisplay(display.X, display.Y, display.Z, 8, 8, 8)
 }
 
-// cubeTypeIndex is the original's scan variant for the EEPROM type (compared case-insensitively),
-// only printed: our scanner always drives one 8x8x8 cube.
+// ignoresDir reports the cube types whose factory dir 1 conversion is the dir 0 one (161616B,
+// 161616C, 8x32x8B, which includes this kit's EEPROM type); the others mount the cube upside down.
+func ignoresDir(cubeType int) bool {
+	return cubeType == 4 || cubeType == 5 || cubeType == 7
+}
+
+// cubeTypeIndex is the original's scan variant for the EEPROM type (compared case-insensitively).
+// Our scanner always drives one 8x8x8 cube; it only decides how display dir 1 is shown.
 func cubeTypeIndex(cubeType string) int {
 	types := [...]string{"8x8x8A", "8x8x8B", "8x16x8A", "161616A", "161616B", "161616C", "8x32x8A", "8x32x8B"}
 	for index, name := range types {

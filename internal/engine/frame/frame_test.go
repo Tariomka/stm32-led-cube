@@ -12,9 +12,9 @@ func TestEncode(t *testing.T) {
 		plane, layer, index int
 		want                byte
 	}{
-		{0, 2, redOffset + 5, bit}, {1, 2, redOffset + 5, bit},
-		{0, 2, greenOffset + 5, bit}, {1, 2, greenOffset + 5, 0},
-		{0, 2, blueOffset + 5, 0}, {1, 2, blueOffset + 5, bit},
+		{0, 2, redOffset + 5, bit}, {1, 2, redOffset + 5, bit}, {2, 2, redOffset + 5, bit},
+		{0, 2, greenOffset + 5, bit}, {1, 2, greenOffset + 5, 0}, {2, 2, greenOffset + 5, 0},
+		{0, 2, blueOffset + 5, bit}, {1, 2, blueOffset + 5, bit}, {2, 2, blueOffset + 5, 0},
 	}
 	for _, c := range checks {
 		if got := b[c.plane][c.layer][c.index]; got != c.want {

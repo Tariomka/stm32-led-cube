@@ -62,10 +62,11 @@ The switches are polled about every 10 ms; a new position must read the same 3 t
 1. Disable the JTAG/SWD port (frees PA13, PA14, PA15, PB3, PB4).
 2. Set up the display scanner (TIM2), EEPROM, cascade UART, status LEDs, microphone (ADC1 + TIM3), IR receiver (EXTI6), UART1, keys (EXTI, falling edge, 30 ms debounce).
 3. Load the registry (`Regedit format error!` if empty).
-4. Read the DIP switches and build the mode's show; restore the saved settings.
-5. Print `Led Cube is starting up`, `T='<type>'`, blink the green LED 3 times, print `Config1=…,Config2=…`.
-6. Cascade discovery (~1.1 s) while still serving UART1.
-7. Place the display (`Total=`, `Run x=…`) and start the main loop.
+4. Start the watchdog.
+5. Read the DIP switches and build the mode's show; restore the saved settings.
+6. Print `Led Cube is starting up` (and `Watchdog reset!` if the watchdog caused the reset), `T='<type>'`, blink the green LED 3 times, print `Config1=…,Config2=…`.
+7. Cascade discovery (~1.1 s) while still serving UART1.
+8. Place the display (`Total=`, `Run x=…`) and start the main loop.
 
 ## Main loop
 
@@ -75,6 +76,7 @@ forever:
   show the frame (encode into the back buffer, wait for the swap)
   apply display off
   until the frame's time is over (show clock), every 10 ms:
+    feed the watchdog
     poll UART1: console commands, upload frames, a pending reboot
     save settings if due
     poll the DIP switches; on change switch the show
@@ -92,12 +94,15 @@ Key presses come from interrupts and are queued; key functions always run in the
 
 | Source | Use | Priority |
 |---|---|---|
-| TIM2 | Display refresh, 400/800 µs steps | default |
+| TIM2 | Display refresh, 120/360/720 µs steps | default |
 | TIM3 | Microphone sampling, 1 kHz | default |
 | TIM4 | TinyGo runtime tick (`time.Sleep`, `time.Now`) | `0xC1` |
 | EXTI (keys, IR) | Edge timestamps with `time.Now` | lowered to `0xE0` |
+| IWDG | Watchdog, resets the MCU when the main loop stops feeding it for ~3 s | |
 
 Pin interrupts must have a lower priority than the runtime tick: `time.Now` in an EXTI handler spins forever if the tick timer overflows while the handler runs at a higher priority.
+
+The watchdog uses TinyGo's `machine.Watchdog` with a 4 s timeout. TinyGo computes it for a 32.768 kHz clock, but the F1's internal LSI oscillator runs at about 40 kHz (30–60 kHz), so the real timeout is about 3.2 s (2.1–4.3 s). Once started it can't be stopped; it ends only with a reset. The ROM bootloader (BOOT0) doesn't start it.
 
 ## Build
 
