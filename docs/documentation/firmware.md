@@ -12,7 +12,8 @@ flowchart TD
     runner[runner: creates the controllers, main loop] --> controller
     controller[controller: one controller per concern] --> lightshow
     controller --> component
-    lightshow[lightshow: show engine + built-in shows] --> common
+    controller --> lib
+    lightshow[lightshow/builtin: built-in shows] --> lib[led-common-lib: show engine, UART protocol]
     component[component: hardware drivers] --> common
     controller --> common
 ```
@@ -22,16 +23,12 @@ flowchart TD
 | `cmd/8x8_rgb_cube` | Entry point |
 | `internal/runner` | Creates the controllers and runs the main loop |
 | `internal/controller` | The controllers (below); each owns its components |
-| `internal/lightshow` | Show engine: player, key functions, script VM. Knows nothing about the hardware |
-| `internal/lightshow/blob` | Show data parser, graph decompression, name expressions |
-| `internal/lightshow/render` | Canvas, graph blit/rotation, ball, title, point, line |
-| `internal/lightshow/keyframe` | Shows written in Go (keyframed props, ASCII-art shapes, palettes) |
 | `internal/lightshow/builtin` | Built-in shows (generated Go cartoons) |
-| `tests` | Host tests: show data parser, built-in shows vs the factory data, frame-by-frame comparison with the vendor 3D Software's preview renderer (32-bit Windows only) |
+| `led-common-lib/pkg/lightshow` (+ `blob`, `render`, `keyframe`) | Show engine from the shared library: player, key functions, script VM, show data parser, renderers, Go-described shows. Knows nothing about the hardware |
+| `led-common-lib/pkg/communication/uart` | Upload frame format and console limits, shared with the Pico and desktop |
+| `tests` | Host tests: built-in shows vs the factory data, graph decoding, frame-by-frame comparison with the vendor 3D Software's preview renderer (32-bit Windows only) |
 | `internal/component` | Drivers of the physical parts: display scanner (with the frame bit layout), buttons, layer decoder, microphone (with the loudness meter), IR receiver, UARTs, EEPROM, flash, watchdog, status LEDs |
-| `internal/common` | Small shared helpers (ASCII compare, `0`/`1` flags) |
-| `tools/showgen` | Generates `internal/lightshow/builtin` from the factory show data |
-| `tools/fwtool` | Extracts the show data from a vendor `.hex` or a flash dump |
+| `internal/common` | Small shared helpers (ASCII compare) |
 
 Controllers:
 
@@ -112,7 +109,7 @@ The watchdog uses TinyGo's `machine.Watchdog` with a 4 s timeout. TinyGo compute
 
 ## Build
 
-Requirements: Go 1.24+, TinyGo 0.39+ (tested with 0.43), STM32CubeProgrammer for flashing over UART.
+Requirements: Go 1.27.2+, TinyGo 0.43+, STM32CubeProgrammer for flashing over UART. The show engine comes from `github.com/Tariomka/led-common-lib` (see `go.mod`).
 
 ```bat
 go run . build                     rem builds ./cmd/8x8_rgb_cube into bin\main.hex
@@ -130,7 +127,6 @@ Host tests (in `tests/`):
 
 ```sh
 go run . test        # or: go test ./tests/...
-go run . oracle      # 32-bit, adds the comparison with the vendor 3D Software's renderer
 ```
 
 ## Flashing
@@ -167,7 +163,6 @@ Writing erases only the pages the file covers, so the show slot and registry sur
 | `monitor [COMx] [baud]` | Prints everything the cube sends |
 | `upload [COMx]` | Starts the vendor "Download Software" at 115200 baud for a show upload |
 | `test [go test flags]` | Host tests in `tests/` |
-| `oracle [go test flags]` | The tests built 32-bit, which adds the frame comparison with the vendor 3D Software's renderer (needs the vendor `Simulator.dll` in `tests/`) |
 
 Defaults: COM4, 115200 baud. The serial port is opened 8N1 with DTR and RTS off. `CUBEPROG` overrides the STM32CubeProgrammer path, `ICUBE_DOWNLOAD` must hold the path of the vendor `Download Software.exe` for `upload`.
 

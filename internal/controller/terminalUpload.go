@@ -13,6 +13,7 @@ package controller
 import (
 	"time"
 
+	"github.com/Tariomka/led-common-lib/pkg/communication/uart"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 )
 
@@ -82,14 +83,7 @@ func (this *TerminalController) storeRecord(address int, data []byte) bool {
 	return this.upload.slot.Write(start-showStart, data[start-address:end-address]) == nil
 }
 
-// reply sends a payload to the PC: A5 05 len payload check 55 (check = XOR of all other bytes).
+// reply sends a payload to the PC in an upload frame.
 func (this *TerminalController) reply(payload []byte) {
-	frame := make([]byte, 0, len(payload)+5)
-	frame = append(frame, frameStart, 0x05, byte(len(payload)))
-	frame = append(frame, payload...)
-	check := byte(frameStart ^ 0x05 ^ 0x55 ^ byte(len(payload)))
-	for _, b := range payload {
-		check ^= b
-	}
-	this.port.Write(append(frame, check, 0x55))
+	this.port.Write(uart.AppendFrame(make([]byte, 0, len(payload)+5), payload))
 }

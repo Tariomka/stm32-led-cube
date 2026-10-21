@@ -1,8 +1,8 @@
-// Generated from the original iCubeSmart show data by tools/showgen.
+// Generated from the original iCubeSmart show data.
 
 package builtin
 
-import "github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe"
+import "github.com/Tariomka/led-common-lib/pkg/lightshow/keyframe"
 
 // audio01AudioG1 is cartoon 1 of the original Audio group.
 func audio01AudioG1() *keyframe.Cartoon {

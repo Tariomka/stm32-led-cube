@@ -1,8 +1,8 @@
-// Generated from the original iCubeSmart show data by tools/showgen.
+// Generated from the original iCubeSmart show data.
 
 package builtin
 
-import "github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe"
+import "github.com/Tariomka/led-common-lib/pkg/lightshow/keyframe"
 
 // Keys are the original key functions of KEY1..KEY7 (lightshow.Action* codes).
 var Keys = [7]int{2, 3, 4, 6, 8, 7, 9}

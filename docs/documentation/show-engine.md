@@ -173,7 +173,7 @@ The Dynamic, Audio and Test modes play built-in shows: the factory cartoons writ
 - A cartoon is a function returning a keyframe description: frame count, loop count, delay and elements. Each element is a list of **Graph** props (start/end frame, shape, palette, from/to pose x, y, z, angle, axis, mode) and **Ball** props (start/end, centre, radius from/to, hollow, colors).
 - Shapes are ASCII art: one line per layer from the top (y = H−1) down; each line holds W rows (z = 0, 1, …) separated by spaces, each with L voxels (x = 0, 1, …). A voxel is `.` (palette index 0) or a hex digit 1–F.
 - Palettes are 16 colors (`0bRRGGBB`), by name.
-- The Go cartoons are generated once from the factory show data with `go run ./tools/showgen`; a test checks that every frame equals the factory rendering.
+- The Go cartoons were generated once from the factory show data; a test checks that every frame equals the factory rendering.
 
 | Mode | Cartoons |
 |---|---|
