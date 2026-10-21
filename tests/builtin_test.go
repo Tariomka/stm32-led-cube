@@ -4,21 +4,21 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/blob"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/keyframe"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/render"
+	"github.com/Tariomka/led-common-lib/test/helpers"
 	"github.com/Tariomka/stm32-led-cube/internal/lightshow/builtin"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/builtin/original"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/render"
 )
 
 func newCanvas() *render.Canvas {
 	return &render.Canvas{Displays: []render.Display{render.NewDisplay(0, 0, 0, 8, 8, 8)}}
 }
 
-// TestMatchesOriginal renders every frame of every Go cartoon and of the original show data.
+// TestMatchesOriginal renders every frame of every Go cartoon and of the factory show data.
 func TestMatchesOriginal(t *testing.T) {
-	b, err := blob.Parse(original.Blob)
+	b, err := blob.Parse(helpers.OriginalShow(t))
 	if err != nil {
 		t.Fatal(err)
 	}

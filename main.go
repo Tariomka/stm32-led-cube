@@ -51,7 +51,6 @@ func init() {
 		{"monitor", "[COMx] [baud]", "Prints everything the cube sends", monitor},
 		{"upload", "[COMx]", "Starts the vendor Download Software at 115200 baud for a show upload", upload},
 		{"test", "[go test flags]", "Runs the host tests", test},
-		{"oracle", "[go test flags]", "Runs the tests 32-bit, including the comparison with the vendor Simulator.dll", oracle},
 	}
 }
 
@@ -143,10 +142,6 @@ func upload(args []string) error {
 
 func test(args []string) error {
 	return execute(nil, "go", append(append([]string{"test"}, args...), "./tests/...")...)
-}
-
-func oracle(args []string) error {
-	return execute([]string{"GOARCH=386"}, "go", append(append([]string{"test", "-count=1"}, args...), "./tests/...")...)
 }
 
 func terminal(args []string) error {

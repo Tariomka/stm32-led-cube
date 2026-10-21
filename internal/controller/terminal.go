@@ -3,6 +3,7 @@ package controller
 import (
 	"time"
 
+	"github.com/Tariomka/led-common-lib/pkg/communication/uart"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
 )
 
@@ -18,9 +19,7 @@ const (
 	streamFrameCheck
 	streamFrameEnd
 
-	maxCommandLine = 180
-	streamTimeout  = 1000 // ms without bytes resets a partial command or frame
-	frameStart     = 0xA5
+	frameKind = 0x05
 )
 
 // rebootDelay lets the vendor upload tool's connect frame, sent right after its "reboot" command,
@@ -29,8 +28,8 @@ const rebootDelay = 300 * time.Millisecond
 
 // TerminalController runs UART1 (core board header, TX - PA9, RX - PA10, 115200 8N1), the link to
 // a PC terminal, the vendor PC tools and the Raspberry Pi Pico. It splits the received bytes into
-// console commands ("#?command args?!", see terminal_commands.go) and binary frames
-// (A5 05 len payload check 55) of show uploads (see upload.go). Replies and the log share the port.
+// console commands ("#?command args?!", see terminalCommands.go) and binary frames
+// (A5 05 len payload check 55) of show uploads (see terminalUpload.go). Replies and the log share the port.
 type TerminalController struct {
 	port     *component.SerialPort
 	system   *SystemController
@@ -92,7 +91,7 @@ func (this *TerminalController) println(s string) { this.port.WriteString(s + "\
 
 // feed processes one received byte.
 func (this *TerminalController) feed(b byte, nowMs uint32) {
-	if this.started && nowMs-this.last > streamTimeout {
+	if this.started && nowMs-this.last > uart.Timeout {
 		this.state = streamIdle
 	}
 	this.started, this.last = true, nowMs
@@ -107,7 +106,7 @@ func (this *TerminalController) feed(b byte, nowMs uint32) {
 	case streamCommand:
 		if b == '?' {
 			this.state = streamQuestion
-		} else if len(this.line) < maxCommandLine {
+		} else if len(this.line) < uart.MaxCommandLine {
 			this.line = append(this.line, b)
 		} else {
 			this.state = streamIdle
@@ -121,12 +120,12 @@ func (this *TerminalController) feed(b byte, nowMs uint32) {
 		return
 	case streamFrame05:
 		this.state = streamIdle
-		if b == 0x05 {
-			this.state, this.check = streamFrameLen, frameStart^b
+		if b == frameKind {
+			this.state, this.check = streamFrameLen, uart.FrameStart^b
 			return
 		}
 	case streamFrameLen:
-		if b == 0 || b >= maxCommandLine {
+		if b == 0 || b > uart.MaxPayload {
 			this.state = streamIdle
 			return
 		}
@@ -144,7 +143,7 @@ func (this *TerminalController) feed(b byte, nowMs uint32) {
 		return
 	case streamFrameEnd:
 		this.state = streamIdle
-		if b == 0x55 && this.received == this.check^0x55 {
+		if b == uart.FrameEnd && this.received == this.check^uart.FrameEnd {
 			this.uploadFrame(this.line)
 		}
 		return
@@ -153,7 +152,7 @@ func (this *TerminalController) feed(b byte, nowMs uint32) {
 	switch b {
 	case '#':
 		this.state = streamHash
-	case frameStart:
+	case uart.FrameStart:
 		this.state = streamFrame05
 	}
 }

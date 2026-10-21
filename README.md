@@ -45,23 +45,18 @@ Here's a basic brakedown of the structure of directories:
 │   ├── controller # One controller per concern, each owning its components:
 │   │          # System (watchdog, LEDs, resets), Settings (EEPROM), Display, Keys, Remote (IR),
 │   │          # Mode (DIP switches), Cascade (chained cubes), Show (player), Terminal (UART1 console + uploads)
-│   ├── lightshow # Re-implementation of the original iCubeSmart show engine (player, key functions, script VM; host testable)
-│   │   ├── blob # Show data parser + graph decompression
-│   │   ├── builtin # Built-in light shows (the original cartoons as Go functions)
-│   │   │   └── original # Original show data, only for tools/showgen and tests
-│   │   ├── keyframe # Light shows written in Go: keyframed graphs/balls, shapes (ASCII art), palettes
-│   │   └── render # Canvas, graphs (rotation), balls, titles
+│   ├── lightshow
+│   │   └── builtin # Built-in light shows (the original cartoons as Go functions, played by the led-common-lib show engine)
 │   ├── component # Hardware drivers: pins, buttons, layer decoder, display scanner (TIM2), microphone (ADC + TIM3), IR receiver, UARTs, EEPROM, flash, watchdog, LEDs
 │   └── common # Small shared helpers
 ├── targets # Custom TinyGo target for the GD32F103RE (512 KB flash, 64 KB RAM)
-├── tests # Host tests: show data parser, built-in shows vs the original data, comparison against the vendor Simulator.dll (windows/386 only)
-├── tools # fwtool (extracts show data from a vendor hex/bin), showgen (show data -> Go shows)
-└── main.go # Windows task runner: go run . build/flash/dump/terminal/monitor/upload/test/oracle
+├── tests # Host tests: the built-in shows render exactly like the factory show data
+└── main.go # Windows task runner: go run . build/flash/dump/terminal/monitor/upload/test
 ```
 
 ## Light shows
 
-The premade shows of the original firmware are Go functions in `internal/lightshow/builtin` (one per cartoon, generated once from the original show data by `go run ./tools/showgen`; a test checks every frame matches the original). They run on a Go port of the original show engine.
+The premade shows of the original firmware are Go functions in `internal/lightshow/builtin` (one per cartoon, generated once from the original show data; a test checks every frame matches the original). They run on a Go port of the original show engine, which lives in the [common library](https://github.com/Tariomka/led-common-lib) (`pkg/lightshow`) together with the UART protocol helpers.
 
 DIP SW1/SW2 select the show mode (`controller.Mode`). Changing them switches the show right away, without a reset:
 
@@ -86,15 +81,15 @@ Other original features:
 
 Full reference (hardware, display, protocols, show format, storage, firmware): [docs/documentation](docs/documentation/README.md).
 
-Run the host tests with `go run . test` (or `go test ./tests/...`). The oracle tests need Windows (32-bit Go) and the vendor `Simulator.dll` in `tests/` (`go run . oracle`). `go run .` lists all tasks of the Windows task runner.
+Run the host tests with `go run . test` (or `go test ./tests/...`). `go run .` lists all tasks of the Windows task runner.
 
 # Getting started
 
 ## Requirements
 
 Bare minimum
-1. Go v1.24.6 or above: [download link](https://go.dev/doc/install).
-2. TinyGo v0.39 or above: [installation instructions](https://tinygo.org/getting-started/install/).
+1. Go v1.27.2 or above: [download link](https://go.dev/doc/install).
+2. TinyGo v0.43 or above: [installation instructions](https://tinygo.org/getting-started/install/).
 3. Any way to flash binaries to the microcontroller. I use STM32CubeProgrammer (listed in [Recommendations](#recommendations) section), but you can use other alternatives, example JTAG Programmer and `tinygo flash` command.
 
 ## Recommendations

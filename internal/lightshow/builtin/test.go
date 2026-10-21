@@ -1,10 +1,10 @@
-// Generated from the original iCubeSmart show data by tools/showgen.
+// Generated from the original iCubeSmart show data.
 
 package builtin
 
 import (
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/keyframe"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/render"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/keyframe"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/render"
 )
 
 // test01X8x1 is cartoon 1 of the original Test group.

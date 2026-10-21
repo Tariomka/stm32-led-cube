@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Tariomka/stm32-led-cube/internal/common"
+	"github.com/Tariomka/led-common-lib/pkg/common"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/blob"
+	"github.com/Tariomka/led-common-lib/pkg/lightshow/render"
 	"github.com/Tariomka/stm32-led-cube/internal/component"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/blob"
-	"github.com/Tariomka/stm32-led-cube/internal/lightshow/render"
 )
 
 const saveDelay = 2 * time.Second // settings are written once the user stops changing them
